@@ -7,10 +7,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#define DEBUG(x) fprintf(stderr, "DEBUG: " x "\n");
+
+#define IFDEBUG(y) //y;
+#define DEBUG(x)   //fprintf(stderr, "DEBUG: " x "\n");
 
 enum errors {
   EOK = 0,
+  EPARAM,
+  EFILE,
   EINPUT,
   EALLOC,
   EQUEUE,
@@ -32,7 +36,6 @@ typedef struct tGraph TGraph;
 typedef struct tTree TTree;
 typedef struct tNode TNode;
 typedef struct tEdge TEdge;
-
 typedef struct tQueue TQueue;
 typedef struct tItem TItem;
 
@@ -40,6 +43,7 @@ typedef struct tItem TItem;
 struct tGraph {
   int count;
   int size;
+  int maxM;
   
   TNode **nodes;
   TTree *trees;
@@ -213,6 +217,54 @@ int addEdge(TGraph *graph, int idA, int idB) {
   return EOK;
 }
 
+/*
+int skipLine(FILE *f) {
+
+  int c;
+  while((c = fgetchar(f)) != EOF) {
+    if (((char)c) == '\n') break;
+  }
+  
+  return c;
+}
+*/
+
+int loadGraph(TGraph *graph, FILE *f) {
+
+  initGraph(graph);
+  
+  int m, x, y;
+  
+  // read m
+  if(fscanf(f, "%d\n", &m) != 1) {
+    return EINPUT;
+  }
+  
+  graph->maxM = m;
+    
+  // read vertices  
+  if (fscanf(f,"Vertices") == EOF) {
+    return EINPUT;
+  }
+  
+  while (fscanf(f, "%d", &x) == 1) {
+    addNode(graph, x);
+  }
+
+  // read edges
+  if (fscanf(f,"Edges") == EOF) {
+    return EINPUT;
+  }
+  
+  while (fscanf(f, "%d %d\n", &x, &y) == 2) {
+    if (x < y) {
+      addEdge(graph, x, y);
+    }
+  }
+  
+  return EOK;
+}
+
 void printGraph(TGraph *graph, FILE *f) {
 
   fprintf(f, "<Graph>\n");
@@ -233,6 +285,37 @@ void printGraph(TGraph *graph, FILE *f) {
       fprintf(f, "\n");  
     }
   }
+}
+
+void printMatching(TGraph *graph, FILE *f) {
+
+  int M = 0;
+  fprintf(f, "<Matching>\n");
+  
+  for(int i = 0; i < graph->size; i++) {
+  
+    TNode *node = graph->nodes[i];
+    if (node != NULL) {
+    
+      TEdge *edge = node->edges;      
+      while(edge != NULL) {
+        
+        if (node->id < edge->node->id && edge->M) {      
+          fprintf(f, "(%d,%d) ", node->id, edge->node->id); 
+          M++;
+        }
+
+        edge = edge->next;
+      }
+    }
+  }
+  
+  if (M != 0) {
+    fprintf(f, "\n\n");  
+  }
+  
+  fprintf(f, "%d (=%d)\n", M, graph->maxM);  
+
 }
 
 TTree *createTree(TGraph *graph) {
@@ -436,7 +519,7 @@ int applyAPS(TTree *tree) {
   return error;
 }
 
-int matching(TGraph *graph) {
+int findMatching(TGraph *graph) {
 
   for (int i = 0, j = 1; i < graph->size && j <= graph->count; i++) {
     
@@ -479,25 +562,43 @@ int matching(TGraph *graph) {
 int main (int argc, char *argv[])
 {
   int error = EOK;
- 
-  TGraph graph; 
-  error = initGraph(&graph);
-  error = addNode(&graph, 1);
-  error = addNode(&graph, 3);  
-  error = addNode(&graph, 4);
-    
-  error = addEdge(&graph, 1,3);  
-  error = addEdge(&graph, 4,3);  
   
-  printGraph(&graph, stderr);
-  matching(&graph);
+  // check params
+  if (argc == 2) {
   
-  printGraph(&graph, stderr);
-  freeGraph(&graph);
-
+    // open file
+    FILE *f = fopen(argv[1], "r");
+    if (f != NULL) {
+  
+      // load graph
+      TGraph graph;      
+      error = loadGraph(&graph, f);
+      if (error == EOK) {
+      
+        // print graph
+        IFDEBUG(printGraph(&graph, stderr))
+        
+        // find matchinf
+        error = findMatching(&graph);
+        if (error == EOK) {
+        
+          // print matching
+          printMatching(&graph, stdout);
+        }
+      }    
+      freeGraph(&graph);
+      fclose(f);
+    }
+    else {
+      error = EFILE;
+    }
+  }
+  else {
+    error = EPARAM;
+  }
   
   if (error != EOK) {
-    fprintf(stderr, "Error");
+    fprintf(stderr, "ERROR %d\n", error);
     return EXIT_FAILURE;
   }
   
