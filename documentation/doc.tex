@@ -1,0 +1,86 @@
+% Dokumentace projektu GAL 2014
+% Vendula Poncová, xponco00
+% Alena Chernikava, xcerni07
+
+\documentclass[a4paper, 11pt, titlepage, final]{article}[3. prosinec 2011]
+
+\newcommand{\uv}[1]{\quotedblbase #1\textquotedblleft}
+\newcommand{\mensi}{$<$}
+\newcommand{\vetsi}{$>$}
+
+\usepackage[left=1.5cm,text={18cm, 25cm},top=2cm]{geometry}
+\usepackage[czech]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[IL2]{fontenc}
+\usepackage[dvipdf]{graphicx}
+\usepackage{color}
+
+\newcommand{\url}[1]{\textit{#1}}
+\begin{document}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% titulni strana - DON'T TOUCH! MAGIC!
+
+\begin{titlepage}
+\begin{center}
+
+\textsc{
+\LARGE Fakulta informačních technologií 
+\medskip\\
+Vysoké učení technické v~Brně}
+
+\vspace{\stretch{0.190}}
+
+{\parbox{5cm}{\centering\includegraphics[height=5cm]{img/logo.eps}}}
+
+\vspace{\stretch{0.190}}
+
+{\huge Paralelizace Egerváryho algoritmu} \medskip \\
+{\Large Dokumentace projektu do předmětu GAL} 
+
+\vspace{\stretch{0.618}}
+
+\end{center}
+
+{\Large
+Tým 33
+
+Vendula Poncová (\texttt{xponco00})
+
+Alena Chernikava (\texttt{xcerni07})
+} \hfill {\Large\today}
+
+\end{titlepage}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% text dokumentace
+
+\pagestyle{plain}
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+%------------------------------------------------------------------------
+\section{Úvod}
+ 
+%------------------------------------------------------------------------
+\section{Egerváryho algoritmus}
+
+%------------------------------------------------------------------------
+\subsection{Sekvenční verze}
+
+%------------------------------------------------------------------------
+\subsection{Paralelní verze}
+
+%------------------------------------------------------------------------
+\subsection{Implementace}
+
+%------------------------------------------------------------------------
+\section{Experimenty}
+
+%------------------------------------------------------------------------
+\section{Závěr}
+
+%------------------------------------------------------------------------
+\end{document}
+
+% end of file
