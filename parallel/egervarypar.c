@@ -237,6 +237,7 @@ tnode_p treenode_create (int nodeval)
 
 pthread_t* mythreads = NULL;
 pthread_mutex_t* vermutex = NULL; 
+pthread_mutex_t* treemutex = NULL; 
 
 
 
@@ -556,6 +557,20 @@ void graph_egervary_parallel (int threads_num)
 	aps_trees = malloc (sizeof (tree_p) * tn); 
 	if ( aps_trees == NULL )
 	{
+		free (threadnumbers);
+		free (mythreads);
+		free (vermutex);
+		printf ("Out of memory\n");
+		exit (EXIT_FAILURE);
+	}
+  	
+	treemutex  = malloc (sizeof (pthread_mutex_t) * tn); 
+	if ( treemutex == NULL ) 
+	{
+		free (threadnumbers);
+		free (mythreads);
+		free (vermutex);
+		free (aps_trees);
 		printf ("Out of memory\n");
 		exit (EXIT_FAILURE);
 	}
@@ -573,6 +588,9 @@ void graph_egervary_parallel (int threads_num)
 			printf ("The specified number of threads could not been created, because err=%d\n, exit", errno);
 			free (threadnumbers);
 			free (mythreads);
+			free (vermutex);
+			free (aps_trees);
+			free (treemutex);
 			exit (EXIT_FAILURE);
 		}	
 	}
@@ -587,6 +605,7 @@ void graph_egervary_parallel (int threads_num)
 	free (mythreads);
 	free (vermutex);
 	free (aps_trees);
+	free (treemutex);
 //	return matching; 
 }
 
