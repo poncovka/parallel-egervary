@@ -380,14 +380,14 @@ while(!isEmpty(Q)) dequeue(Q);
 
 void matching_change (tree_p tree, adjlist_p pathEnd)
 {
-	adjlist_p u,v;
+	adjlist_p u,vertex;
 	listvert_p edge, edgeR;
 	u = pathEnd;	
 	while ( u != tree->root )
 	{
-		listvert_p edge = u->parentInTree;
-		listvert_p edgeR = edge->reverse;
-		adjlist_p vertex = edgeR->vertex;
+		edge = u->parentInTree;
+		edgeR = edge->reverse;
+		vertex = edgeR->vertex;
 
 		edge->isM = !(edge->isM);
 		edgeR->isM = !(edgeR->isM);
@@ -528,7 +528,7 @@ graph_p graph_egervary_parallel (int threads_num)
 	for ( int i = 0 ; i < tn ; i++ )
 	{
 		threadnumbers[i] = i;
-	       	while ( pthread_create (&mythreads[i], &attr, (void *) do_aps, &threadnumbers[i]) != 0 )
+	       	while ( pthread_create (&mythreads[i], &attr, do_aps, &threadnumbers[i]) != 0 )
 		{
 			if ( errno == EAGAIN )  /* #define EAGAIN      11  znamena  Try again  */
 				continue;
