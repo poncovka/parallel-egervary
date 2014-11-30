@@ -82,7 +82,7 @@ typedef struct TTree{
 	etreestate_t state;
 } *tree_p;
 
-
+tree_p *aps_trees = NULL ;
 
 graph_p mygraph;
 
@@ -242,16 +242,11 @@ pthread_mutex_t* vermutex = NULL;
 
 tree_p tree_create (adjlist_p root, int threadid)
 {
-	tree_p mytree = (tree_p) malloc ( sizeof (tree_t) );
+	aps_trees[threadid]->root = root;
+	aps_trees[threadid]->thread_id = threadid;
+	aps_trees[threadid]->state = FREE;
 	
-	if ( mytree == NULL )
-        	return NULL;
-	
-	mytree->root = root;
-	mytree->thread_id = threadid;
-	mytree->state = FREE;
-	
-	return mytree;
+	return aps_trees[threadid];
 }
 
 
@@ -293,8 +288,6 @@ void tree_destroy (tree_p tr, graph_p grph, int id)
 			grph->vertices[i].parentInTree = NULL ;
 		}  
 	}
-	if ( tr )
-	        free (tr);
 }
 
 int isInM( adjlist_p vert)
@@ -453,11 +446,11 @@ void* do_aps (void *arg)
 				{
 					if ( mygraph->vertices[curblue->vertex->vname].vertex_owner == -1 ) // vertex is free
 					{
+						mygraph->vertices[curblue->vertex->vname].vertex_owner = id ; //add curblue to aps_tree
+						mygraph->vertices[curblue->vertex->vname].color = BLUE ; //add curblue to aps_tree
+						mygraph->vertices[curblue->vertex->vname].parentInTree = curblue ; //add curblue to aps_tree
 						if ( !curblue->isM )
 						{
-							mygraph->vertices[curblue->vertex->vname].vertex_owner = id ; //add curblue to aps_tree
-							mygraph->vertices[curblue->vertex->vname].color = BLUE ; //add curblue to aps_tree
-							mygraph->vertices[curblue->vertex->vname].parentInTree = curblue ; //add curblue to aps_tree
 							// lock myself
 						        matching_change (aps_tree, curblue->vertex);//change M
 							graph_matching_print (mygraph);
@@ -465,15 +458,47 @@ void* do_aps (void *arg)
 							pathFound = true; 	
 							// unlock myself
 							pthread_mutex_unlock (&vermutex[curblue->vertex->vname]);
-						//	goto: graph_get_free_vertex
-						// else
-						// 	unlock mutex curblueval 
-						//	for every child of curblue.val 
-						//		lock mutex child
-						//		add child to tree (subroutin with conflict solving)
-						//		add to red vertices
-						//		unlock mutex child
-						//
+						}
+						else
+						{
+							pthread_mutex_unlock (&vermutex[curblue->vertex->vname]);
+							
+							listvert_p newEdgeToRed = curblue->vertex->head;
+							int redIsFound = false; 
+							// there SHOULD  be EXACTLY one, because of the bipartitity of the graph
+							while ( ( newEdgeToRed != NULL ) && ( !redIsFound) )
+							{
+								adjlist_p newred = newEdgeToRed->vertex;
+								
+								pthread_mutex_lock (&vermutex[newred->vname]);
+								if ( newEdgeToRed->isM )
+								{
+									if ( newred->vertex_owner == -1 ) // is free
+									{	
+										newred->vertex_owner = id ; //add newred to aps_tree
+										newred->color = RED ; //add newred to aps_tree
+										newred->parentInTree = newEdgeToRed ; //add newred to aps_tree
+									}
+									else
+									{// conflict B-B. B-R nikdy nenastane, porusi se podminka biparcitnosti
+										pathFound = true;
+										// lockmyself
+										// lock vertex ownre tree
+										// signal to vertex_owner
+										//
+						        			matching_change (aps_tree, curblue->vertex);//change M
+										graph_matching_print (mygraph);
+										tree_destroy (aps_tree, mygraph, id);
+										newEdgeToRed->isM = !newEdgeToRed;   // = false	
+										// unlock myself
+										// //solveconflict
+									}	
+									enqueue (&redvertices, newred);
+									redIsFound = true;
+								}
+								pthread_mutex_unlock (&vermutex[newred->vname]);
+								newEdgeToRed = newEdgeToRed->next;
+							}	
 						}
 					}
 					else
@@ -528,6 +553,12 @@ void graph_egervary_parallel (int threads_num)
 		exit (EXIT_FAILURE);
 	}
 
+	aps_trees = malloc (sizeof (tree_p) * tn); 
+	if ( aps_trees == NULL )
+	{
+		printf ("Out of memory\n");
+		exit (EXIT_FAILURE);
+	}
 	pthread_attr_t attr;
 	pthread_attr_init (&attr);
 	pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_JOINABLE);
@@ -555,6 +586,7 @@ void graph_egervary_parallel (int threads_num)
 	free (threadnumbers);
 	free (mythreads);
 	free (vermutex);
+	free (aps_trees);
 //	return matching; 
 }
 
