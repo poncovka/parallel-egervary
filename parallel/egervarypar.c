@@ -289,6 +289,8 @@ void tree_destroy (tree_p tr, graph_p grph, int id)
 			grph->vertices[i].parentInTree = NULL ;
 		}  
 	}
+	aps_trees[id]->root = NULL;
+	aps_trees[id]->state = FREE; 
 }
 
 int isInM( adjlist_p vert)
@@ -314,6 +316,7 @@ int graph_get_free_vertex (graph_p grph, int myid)
 		{
 			grph->vertices[i].vertex_owner = myid;
 			grph->vertices[i].color = RED;
+			grph->vertices[i].parentInTree = NULL;
 			pthread_mutex_unlock (&vermutex[i]);
 			result = i;	
 			break;
@@ -423,23 +426,25 @@ void* do_aps (void *arg)
 {
 	int id = *(int*) arg;
 	printf ("thread %d: Starting do_aps()\n", id);
-	int root = graph_get_free_vertex (mygraph, id);
+	int root = graph_get_free_vertex (mygraph, id);	// threadsafe
 	while ( root != -1 )
 	{
 		tree_p aps_tree = tree_create (&(mygraph->vertices[root]), id);
 		
-		if ( aps_tree == NULL )
-			exit (EXIT_FAILURE);
 		printf ("thread %d: root is %d\n", id, aps_tree->root->vname);
 		TQueue redvertices;
 		initQueue (&redvertices);
 		enqueue (&redvertices, (void*) aps_tree->root);
 		int pathFound = false;
+		
 		while ( !isEmpty(&redvertices) && !pathFound )
 		{
-			adjlist_p curred  = dequeue (&redvertices);
-			listvert_p curblue = mygraph->vertices[curred->vname].head;
+			adjlist_p curred = dequeue (&redvertices);
+			listvert_p curblue = curred->head;
 	//		pthread_mutex_lock (&vermutex[curred->vname]);
+	//		if is in conflict ??
+	//		// solve conflict
+	//		else go further
 			while ( curblue != NULL  && !pathFound )
 			{	
 				pthread_mutex_lock (&vermutex[curblue->vertex->vname]);
@@ -450,63 +455,124 @@ void* do_aps (void *arg)
 						mygraph->vertices[curblue->vertex->vname].vertex_owner = id ; //add curblue to aps_tree
 						mygraph->vertices[curblue->vertex->vname].color = BLUE ; //add curblue to aps_tree
 						mygraph->vertices[curblue->vertex->vname].parentInTree = curblue ; //add curblue to aps_tree
-						if ( !curblue->isM )
-						{
-							// lock myself
-						        matching_change (aps_tree, curblue->vertex);//change M
-							graph_matching_print (mygraph);
-							tree_destroy (aps_tree, mygraph, id);
-							pathFound = true; 	
-							// unlock myself
-							pthread_mutex_unlock (&vermutex[curblue->vertex->vname]);
-						}
-						else
-						{
-							pthread_mutex_unlock (&vermutex[curblue->vertex->vname]);
-							
-							listvert_p newEdgeToRed = curblue->vertex->head;
-							int redIsFound = false; 
-							// there SHOULD  be EXACTLY one, because of the bipartitity of the graph
-							while ( ( newEdgeToRed != NULL ) && ( !redIsFound) )
-							{
-								adjlist_p newred = newEdgeToRed->vertex;
-								
-								pthread_mutex_lock (&vermutex[newred->vname]);
-								if ( newEdgeToRed->isM )
-								{
-									if ( newred->vertex_owner == -1 ) // is free
-									{	
-										newred->vertex_owner = id ; //add newred to aps_tree
-										newred->color = RED ; //add newred to aps_tree
-										newred->parentInTree = newEdgeToRed ; //add newred to aps_tree
-									}
-									else
-									{// conflict B-B. B-R nikdy nenastane, porusi se podminka biparcitnosti
-										pathFound = true;
-										// lockmyself
-										// lock vertex ownre tree
-										// signal to vertex_owner
-										//
-						        			matching_change (aps_tree, curblue->vertex);//change M
-										graph_matching_print (mygraph);
-										tree_destroy (aps_tree, mygraph, id);
-										newEdgeToRed->isM = !newEdgeToRed;   // = false	
-										// unlock myself
-										// //solveconflict
-									}	
-									enqueue (&redvertices, newred);
-									redIsFound = true;
-								}
-								pthread_mutex_unlock (&vermutex[newred->vname]);
-								newEdgeToRed = newEdgeToRed->next;
-							}	
-						}
 					}
 					else
 					{
+						// lock trees: with max id first
+						if ( curblue->vertex->vertex_owner > id )
+						{
+							pthread_mutex_lock (&treemutex[curblue->vertex->vertex_owner]);
+							pthread_mutex_lock (&treemutex[id]);// lock myself
+						}
+						else
+						{
+							pthread_mutex_lock (&treemutex[id]);// lock myself
+							pthread_mutex_lock (&treemutex[curblue->vertex->vertex_owner]);
+						}
+						aps_trees[id]->state = PROCESSED;
+						aps_trees[curblue->vertex->vertex_owner]->state = PROCESSED;
+						// check if somthing changed TODO
+						if ( curblue->vertex->color == RED ) 
+					 	{
+							matching_change (aps_tree, curred);//change my M
+							tree_destroy (aps_tree, mygraph, id);
+							curblue->isM = !curblue->isM;   // = true
+							// this produces sementation fault TODO
+							matching_change (aps_tree, curblue->vertex); //change M
+							tree_destroy (aps_trees[curblue->vertex->vertex_owner], mygraph, curblue->vertex->vertex_owner);
+							graph_matching_print (mygraph);
+						}
+						else
+						{
+							//TODO subtree
+						}	
+						// unlock
+						aps_trees[id]->state = FREE;
+						aps_trees[curblue->vertex->vertex_owner]->state = FREE;
+						if ( curblue->vertex->vertex_owner > id )
+						{
+							pthread_mutex_unlock (&treemutex[id]);// lock myselfi
+							pthread_mutex_unlock (&treemutex[curblue->vertex->vertex_owner]);
+						}
+						else
+						{
+							pthread_mutex_unlock (&treemutex[curblue->vertex->vertex_owner]);
+							pthread_mutex_unlock (&treemutex[id]);// lock myselfi
+						}
 					}	
+					if ( !isInM(curblue->vertex) ) // to do, it seems, that it is not atomic
+					{
+						pthread_mutex_unlock (&vermutex[curblue->vertex->vname]);
+						pthread_mutex_lock (&treemutex[id]);// lock myself
+						// check myself if smth changed TODO
+					        matching_change (aps_tree, curblue->vertex);//change M
+						graph_matching_print (mygraph);
+						tree_destroy (aps_tree, mygraph, id);
+						pathFound = true; 	
+						pthread_mutex_unlock (&treemutex[id]);// unlock myself
+					}
+					else
+					{
+						pthread_mutex_unlock (&vermutex[curblue->vertex->vname]);
 						
-				}
+						listvert_p newEdgeToRed = curblue->vertex->head;
+						int redIsFound = false; 
+						// there SHOULD  be EXACTLY one, because of the bipartitity of the graph
+						while ( ( newEdgeToRed != NULL ) && ( !redIsFound) )
+						{
+							adjlist_p newred = newEdgeToRed->vertex;
+							
+							pthread_mutex_lock (&vermutex[newred->vname]);
+							if ( newEdgeToRed->isM )
+							{
+								if ( newred->vertex_owner == -1 ) // is free
+								{	
+									newred->vertex_owner = id ; //add newred to aps_tree
+									newred->color = RED ; //add newred to aps_tree
+									newred->parentInTree = newEdgeToRed ; //add newred to aps_tree
+								}
+								else
+								{// conflict B-B. B-R nikdy nenastane, porusi se podminka biparcitnosti
+									pathFound = true;
+									// lock trees: with max id first
+									if ( newred->vertex_owner > id )
+									{
+										pthread_mutex_lock (&treemutex[newred->vertex_owner]);
+										pthread_mutex_lock (&treemutex[id]);// lock myselfi
+									}
+									else
+									{
+										pthread_mutex_lock (&treemutex[id]);// lock myselfi
+										pthread_mutex_lock (&treemutex[newred->vertex_owner]);
+									}
+									// check if somthing changed TODO
+						       			matching_change (aps_tree, curblue->vertex);//change M
+									tree_destroy (aps_tree, mygraph, id);
+									newEdgeToRed->isM = !newEdgeToRed->isM;   // = false	
+						       			// this produces sementation fault TODO
+						       			matching_change (aps_tree, newred); //change M
+									tree_destroy (aps_trees[newred->vertex_owner], mygraph, newred->vertex_owner);
+									graph_matching_print (mygraph);
+									// unlock
+									if ( newred->vertex_owner > id )
+									{
+										pthread_mutex_unlock (&treemutex[id]);// lock myselfi
+										pthread_mutex_unlock (&treemutex[newred->vertex_owner]);
+									}
+									else
+									{
+										pthread_mutex_unlock (&treemutex[newred->vertex_owner]);
+										pthread_mutex_unlock (&treemutex[id]);// lock myselfi
+									}
+								}	
+								enqueue (&redvertices, newred);
+								redIsFound = true;
+							}
+							pthread_mutex_unlock (&vermutex[newred->vname]);
+							newEdgeToRed = newEdgeToRed->next;
+						}//end of processing blue vertex childs
+					}// end of blue vertex processing
+				}// end if vertex is my	
 				else
 					pthread_mutex_unlock (&vermutex[curblue->vertex->vname]);
 				curblue = curblue->next;
@@ -515,9 +581,10 @@ void* do_aps (void *arg)
 	//		pthread_mutex_unlock (&vermutex[curred->vname]);
 	
 			curred = dequeue (&redvertices);
-		}	
+		}	// end of processing of all red vertices
 		root = graph_get_free_vertex (mygraph, id);
-	}
+	}// end of while
+	// there is no free vertices	
 	pthread_exit (NULL);
 }
 
@@ -574,12 +641,15 @@ void graph_egervary_parallel (int threads_num)
 		printf ("Out of memory\n");
 		exit (EXIT_FAILURE);
 	}
+
 	pthread_attr_t attr;
 	pthread_attr_init (&attr);
 	pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_JOINABLE);
 
 	for ( int i = 0 ; i < tn ; i++ )
 	{
+        	pthread_mutex_init(&vermutex[i], NULL);
+        	pthread_mutex_init(&treemutex[i], NULL);
 		threadnumbers[i] = i;
 	       	while ( pthread_create (&mythreads[i], &attr, do_aps, &threadnumbers[i]) != 0 )
 		{
