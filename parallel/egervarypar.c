@@ -81,9 +81,13 @@ typedef struct TTree{
 	int size;
 	etreestate_t state;
 } *tree_p;
+
+
+
 graph_p mygraph;
 
 // Function to create a graph with n vertices 
+
 graph_p graph_create (int n)
 {
     graph_p graph = (graph_p) malloc ( sizeof (graph_t) );
@@ -396,7 +400,7 @@ void matching_change (tree_p tree, adjlist_p pathEnd)
 }
 
 
-void printMatching (graph_p graph)
+void graph_matching_print (graph_p graph)
 {
 	int M = 0;
 	printf("<Matching>\n");
@@ -441,7 +445,7 @@ void* do_aps (void *arg)
 		{
 			adjlist_p curred  = dequeue (&redvertices);
 			listvert_p curblue = mygraph->vertices[curred->vname].head;
-			pthread_mutex_lock (&vermutex[curred->vname]);
+	//		pthread_mutex_lock (&vermutex[curred->vname]);
 			while ( curblue != NULL  && !pathFound )
 			{	
 				pthread_mutex_lock (&vermutex[curblue->vertex->vname]);
@@ -449,15 +453,18 @@ void* do_aps (void *arg)
 				{
 					if ( mygraph->vertices[curblue->vertex->vname].vertex_owner == -1 ) // vertex is free
 					{
-						if ( !curblue->isM)
+						if ( !curblue->isM )
 						{
 							mygraph->vertices[curblue->vertex->vname].vertex_owner = id ; //add curblue to aps_tree
 							mygraph->vertices[curblue->vertex->vname].color = BLUE ; //add curblue to aps_tree
 							mygraph->vertices[curblue->vertex->vname].parentInTree = curblue ; //add curblue to aps_tree
+							// lock myself
 						        matching_change (aps_tree, curblue->vertex);//change M
-							printMatching (mygraph);
+							graph_matching_print (mygraph);
+							tree_destroy (aps_tree, mygraph, id);
+							pathFound = true; 	
+							// unlock myself
 							pthread_mutex_unlock (&vermutex[curblue->vertex->vname]);
-						//	destroy_tree 
 						//	goto: graph_get_free_vertex
 						// else
 						// 	unlock mutex curblueval 
@@ -479,21 +486,21 @@ void* do_aps (void *arg)
 				curblue = curblue->next;
 			}
 						
-			pthread_mutex_unlock (&vermutex[curred->vname]);
+	//		pthread_mutex_unlock (&vermutex[curred->vname]);
 	
 			curred = dequeue (&redvertices);
 		}	
-		tree_destroy (aps_tree, mygraph, id);
 		root = graph_get_free_vertex (mygraph, id);
 	}
 	pthread_exit (NULL);
 }
 
 
-graph_p graph_egervary_parallel (int threads_num)
+void graph_egervary_parallel (int threads_num)
 {
 	int *threadnumbers = NULL;
-	graph_p matching = graph_create (mygraph->n);
+	graph_p matching = graph_create (mygraph->n); // nemuzu se toho zbavit, ptotoze po zakomentovaani tohoto radku, nefunguje mutex
+//	graph_print (matching );
 	
 	int tn = mygraph->n < threads_num ? mygraph->n : threads_num;
 	printf (" would be created %d threads\n", tn);
@@ -548,7 +555,7 @@ graph_p graph_egervary_parallel (int threads_num)
 	free (threadnumbers);
 	free (mythreads);
 	free (vermutex);
-	return matching; 
+//	return matching; 
 }
 
 
@@ -579,8 +586,8 @@ int main (int argc, char* argv[])
 		mygraph = graph_read (file);
 		fclose (file);
 		graph_print (mygraph);
-		graph_p matching =  graph_egervary_parallel (n);
-	//	graph_print (matching);
+		graph_egervary_parallel (n);
+		graph_matching_print (mygraph);
 		//graph_print_to_file (matching);
 		graph_destroy (mygraph);
 	//	graph_destroy (matching);
