@@ -41,11 +41,8 @@ typedef struct tItem TItem;
 
 
 struct tGraph {
-  int count;
-  int size;
-  int maxM;
-  
-  TNode **nodes;
+  int n;
+  TNode *nodes;
   TTree *trees;
 };
 
@@ -79,21 +76,26 @@ struct tItem {
   TItem *next;
 };
 
-int initGraph(TGraph *graph) {
+int initGraph(TGraph *graph, int n) {
 
   // init graph
-  graph->count = 0;
-  graph->size = 100;
+  graph->n = n;
   graph->trees = NULL;
-  graph->nodes = malloc(graph->size * sizeof(TNode*));
+  graph->nodes = malloc(n * sizeof(TNode));
   
   if(graph->nodes == NULL) {
     return EALLOC;
   }
   
-  // init array of pointers
-  for(int i = 0; i < graph->size; i++) {\
-    graph->nodes[i] = NULL;
+  // init nodes
+  TNode *node = NULL;
+  for(int i = 0; i < n; i++) {\
+    node = &(graph->nodes[i]);
+
+    node->id = i;
+    node->edges = NULL;
+    node->entry = NULL;
+    node->tree = NULL;    
   }
   
   return EOK;
@@ -101,25 +103,19 @@ int initGraph(TGraph *graph) {
 
 void freeGraph(TGraph *graph) {
 
-  // free nodes
-  for(int i=0; i < graph->size; i++) {
-    TNode *node = graph->nodes[i];
+  // free edges  
+  for(int i=0; i < graph->n; i++) {
+    TNode *node = &(graph->nodes[i]);
+    TEdge *edge = node->edges;
     
-    // free edges
-    if (node != NULL) {
-      TEdge *edge = graph->nodes[i]->edges;
-    
-      while (edge != NULL) {
-    
-        TEdge *old = edge;
-        edge = edge->next;
-        free(old);
-      }
-      
-      free(node);
+    while (edge != NULL) {
+      TEdge *old = edge;
+      edge = edge->next;
+      free(old);
     }
   }
   
+  // free nodes
   free(graph->nodes);
   
   // free trees
@@ -129,69 +125,20 @@ void freeGraph(TGraph *graph) {
     tree = tree->next;
     free(old);
   }
-}
-
-
-int addNode(TGraph *graph, int id) {  
   
-  // resize the array
-  if(id >= graph->size) {
-    TNode **old = graph->nodes;
-    int oldsize = graph->size;
-    graph->size = id * 2;
-    graph->nodes = realloc(old, graph->size * sizeof(TNode*));
-    
-   if(graph->nodes == NULL) {
-    return EALLOC;
-   }
-   
-   for (int i = oldsize; i < graph->size; i++ ) {
-     graph->nodes[i] = NULL;
-   }
-  }
-  
-  // check id
-  if(graph->nodes[id] != NULL) {
-    return EINPUT;
-  }
-  
-  // create the node
-  TNode *node = malloc(sizeof(TNode));
-
-  if(node == NULL) {
-    return EALLOC;
-   }  
-
-  node->id = id;
-  node->entry = NULL;
-  node->edges = NULL;
-  node->tree = NULL;
-  
-  // add the node
-  graph->nodes[id] = node;
-  graph->count++;
-    
-  return EOK;
-}
-
-TNode* getNode(TGraph *graph, int id) {
-  if (id >= graph->size) {
-    return NULL;  
-  }
-  
-  return graph->nodes[id];
 }
 
 int addEdge(TGraph *graph, int idA, int idB) {
 
-  // get nodes
-  TNode *A = getNode(graph, idA);
-  TNode *B = getNode(graph, idB);
-  
-  if (idA == idB || A == NULL || B == NULL) {
+  // check input
+  if (idA == idB || idA >= graph->n || idB >= graph->n) {
     return EINPUT;
   }
-  
+
+  // get nodes
+  TNode *A = &(graph->nodes[idA]);
+  TNode *B = &(graph->nodes[idB]);
+    
   // allocate edges
   TEdge *edgeAB = malloc(sizeof(TEdge));
   TEdge *edgeBA = malloc(sizeof(TEdge));
@@ -217,60 +164,38 @@ int addEdge(TGraph *graph, int idA, int idB) {
   return EOK;
 }
 
-/*
-int skipLine(FILE *f) {
-
-  int c;
-  while((c = fgetchar(f)) != EOF) {
-    if (((char)c) == '\n') break;
-  }
-  
-  return c;
-}
-*/
-
 int loadGraph(TGraph *graph, FILE *f) {
 
-  initGraph(graph);
+  // init
+  int n = 0, m = 0, x = 0, y = 0;
   
-  int m, x, y;
-  
-  // read m
-  if(fscanf(f, "%d\n", &m) != 1) {
+  // read numbers of vertices and edges
+  if(fscanf(f, "%d %d", &n, &m) != 2) {
     return EINPUT;
-  }
-  
-  graph->maxM = m;
-    
-  // read vertices  
-  if (fscanf(f,"Vertices") == EOF) {
-    return EINPUT;
-  }
-  
-  while (fscanf(f, "%d", &x) == 1) {
-    addNode(graph, x);
   }
 
+  // init graph
+  initGraph(graph, n);
+  
   // read edges
-  if (fscanf(f,"Edges") == EOF) {
-    return EINPUT;
-  }
+  for (int i = 1; i <= m; i++) {
   
-  while (fscanf(f, "%d %d\n", &x, &y) == 2) {
-    if (x < y) {
-      addEdge(graph, x, y);
+    if(fscanf(f, "%d %d", &x, &y) != 2) {
+      return EINPUT;
     }
+    
+    addEdge(graph, x, y);
   }
-  
+    
   return EOK;
 }
 
 void printGraph(TGraph *graph, FILE *f) {
 
   fprintf(f, "<Graph>\n");
-  for(int i = 0; i < graph->size; i++) {
+  for(int i = 0; i < graph->n; i++) {
   
-    TNode *node = graph->nodes[i];
+    TNode *node = &(graph->nodes[i]);
     if (node != NULL) {
     
       fprintf(f, "Node %d: ", node->id);  
@@ -292,9 +217,10 @@ void printMatching(TGraph *graph, FILE *f) {
   int M = 0;
   fprintf(f, "<Matching>\n");
   
-  for(int i = 0; i < graph->size; i++) {
+  // print edges in matching
+  for(int i = 0; i < graph->n; i++) {
   
-    TNode *node = graph->nodes[i];
+    TNode *node = &(graph->nodes[i]);
     if (node != NULL) {
     
       TEdge *edge = node->edges;      
@@ -314,7 +240,8 @@ void printMatching(TGraph *graph, FILE *f) {
     fprintf(f, "\n\n");  
   }
   
-  fprintf(f, "%d (=%d)\n", M, graph->maxM);  
+  // print number of edges in matching
+  fprintf(f, "%d\n", M);  
 
 }
 
@@ -337,7 +264,7 @@ TTree *createTree(TGraph *graph) {
 
 
 int inAPSTree (TNode *x) {
- return (x->tree != NULL && x->tree->status == APSTREE);
+  return (x->tree != NULL && x->tree->status == APSTREE);
 }
 
 void initQueue(TQueue *Q) {
@@ -397,24 +324,44 @@ void freeQueue(TQueue *Q) {
 
 }
 
+void processPath(TTree *tree, TNode *end) {
+
+  TNode *u, *v;
+  TEdge *uv, *vu;
+    
+  u = end;
+       
+  while (u != tree->root) {
+   
+    vu = u->entry;
+    uv = vu->reversed;
+    v  = uv->node;
+      
+    vu->M = !(vu->M);
+    uv->M = !(uv->M);
+      
+    u = v;
+  }
+    
+  tree->status = NONE;
+}
+
 int _applyAPS(TTree *tree, TQueue *Q) {
 
   DEBUG("Apply APS.")
   
   int error = EOK;  
   int yM = 0, foundPath = 0;
+  
   TNode *x, *y, *z, *pathEnd = NULL;
   TEdge *xy, *yz;
 
   // insert root into Q
-  DEBUG("Insert root to Q.")
   error = enqueue(Q, (void*) tree->root);
   if (error != EOK) return error;
   
   // while Q is not empty and no path found
   while(!isEmpty(Q) && !foundPath) {
-
-    DEBUG("Get x from Q.")
 
     // get x
     x = dequeue(Q);    
@@ -422,11 +369,8 @@ int _applyAPS(TTree *tree, TQueue *Q) {
 
     while(xy != NULL && !foundPath) {
 
-      DEBUG("Find y.")
-
       // get y
       y = xy->node;
-      
       if (y->tree == tree || inAPSTree(y)) {
         xy = xy->next;
         continue;
@@ -438,12 +382,9 @@ int _applyAPS(TTree *tree, TQueue *Q) {
       
       yz = y->edges;
       while(yz != NULL) {
-      
-        DEBUG("Find z.")
-      
+            
         // get z
         z = yz->node;
-        
         if (!(yz->M) || (z->tree == tree) || inAPSTree(z)) {
           yz = yz->next;
           continue;
@@ -462,9 +403,7 @@ int _applyAPS(TTree *tree, TQueue *Q) {
       }    
       
       // y is not in M, we found a path
-      if (!yM) {
-        DEBUG("Found path.")
-        
+      if (!yM) {  
         foundPath = 1;
         pathEnd = y;
       }
@@ -476,31 +415,11 @@ int _applyAPS(TTree *tree, TQueue *Q) {
   
   // we found M-path, change M
   if(foundPath) {
-    DEBUG("Process path.")
-  
-    TNode *u, *v;
-    TEdge *uv, *vu;
-      
-    u = pathEnd;
-       
-    while (u != tree->root) {
-    
-      vu = u->entry;
-      uv = vu->reversed;
-      v  = uv->node;
-      
-      vu->M = !(vu->M);
-      uv->M = !(uv->M);
-      
-      u = v;
-    }
-    
-    tree->status = NONE;
+    processPath(tree, pathEnd);
   }
   
   // we found APS-tree
   else {
-    DEBUG("Found APS-tree.")
     tree->status = APSTREE;
   }
 
@@ -521,10 +440,12 @@ int applyAPS(TTree *tree) {
 
 int findMatching(TGraph *graph) {
 
-  for (int i = 0, j = 1; i < graph->size && j <= graph->count; i++) {
+  int error = EOK;
+  
+  for (int i = 0; i < graph->n; i++) {
     
     // get node
-    TNode *node = graph->nodes[i];
+    TNode *node = &(graph->nodes[i]);
 
     if (node != NULL) {
      
@@ -545,10 +466,9 @@ int findMatching(TGraph *graph) {
       node->tree = tree;
       
       // find augmenting path
-      int err = applyAPS(tree);
-      if (err != EOK) return err;
+      error = applyAPS(tree);
+      if (error != EOK) return error;
     
-      j++;
     }  
   }
 

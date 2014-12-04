@@ -1,15 +1,21 @@
-
-
+#
 # GAL 2014
 # Generator of bipartite graphs
 #
+# Dependencies:
 # python 2.7
 # python-igraph 0.7
+#
+# Run:
+# python generator.py
 
 import random
 from igraph import *
 
-MAXNODES = 5000
+# set max nodes you want to generate
+MAXNODES = 2500
+
+# set the prefix of generated files
 FILENAME = "graph"
 
 def createGraph(n1, n2, p):
@@ -23,15 +29,9 @@ def findMaximumMatching(g):
 def writeGraph(fname, g, m):
 
   with open(fname, "w") as f:
-    f.write("{}\n".format(len(m)))
-    
-    f.write("Vertices\n")
-    
-    for v in g.vs:
-      f.write("{}\n".format(v.index))
-      
-    f.write("Edges\n")
-    
+  
+    f.write("{}\n{}\n".format(g.vcount(), g.ecount()))
+        
     for e in g.es:
       f.write("{} {}\n".format(e.source, e.target))
 
