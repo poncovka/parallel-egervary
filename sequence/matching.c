@@ -6,7 +6,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #define IFDEBUG(y) //y;
 #define DEBUG(x)   //fprintf(stderr, "DEBUG: " x "\n");
@@ -19,11 +18,6 @@ enum errors {
   EALLOC,
   EQUEUE,
   EUNKNOWN
-};
-
-enum colors {
-  RED,
-  BLUE
 };
 
 enum treestat {
@@ -498,7 +492,7 @@ int main (int argc, char *argv[])
         // print graph
         IFDEBUG(printGraph(&graph, stderr))
         
-        // find matchinf
+        // find matching
         error = findMatching(&graph);
         if (error == EOK) {
         
