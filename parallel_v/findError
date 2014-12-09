@@ -1,0 +1,19 @@
+#!/bin/bash
+
+for i in `seq 1 10000` 
+do
+  
+  date=`date`
+  echo -en "\r$i $date ";
+  
+  ./matching ../graph/graph_8_8_55_8 10 >output 2>error
+  x=`tail -n 1 output`
+
+  if [ "$x" != "8" ]; then
+    echo "Found one!"
+    break
+  fi
+  
+done
+
+echo "End."
