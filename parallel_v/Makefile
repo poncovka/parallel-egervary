@@ -6,10 +6,13 @@
 
 NAME=matching
 CC=gcc
-CFLAGS=-std=c99  -pedantic -Wall -W -g -O3
+CFLAGS=-std=c99 -pedantic -Wall -W -g -O3
 
 all: $(NAME).c
 	$(CC) $(CFLAGS) $(NAME).c -o $(NAME) -lpthread
+
+profile:
+	$(CC) $(CFLAGS) -pg $(NAME).c -o $(NAME) -lpthread
 
 clean:
 	rm $(NAME)
