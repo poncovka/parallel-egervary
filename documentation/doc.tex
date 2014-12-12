@@ -35,8 +35,8 @@ Vysoké učení technické v~Brně}
 
 \vspace{\stretch{0.190}}
 
-{\large Dokumentace projektu do předmětu GAL} \medskip \\
-{\LARGE Paralelizace Egerváryho algoritmu} 
+{\LARGE Dokumentace projektu do předmětu GAL} \medskip \\
+{\Large Paralelizace Egerváryho algoritmu} 
 
 
 \vspace{\stretch{0.618}}
@@ -62,95 +62,102 @@ Alena Chernikava (\texttt{xcerni07})
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Úvod}
 
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Egerváryho algoritmus}
 
+
 \begin{figure}[ht]
   \centering
-  \includegraphics[scale=0.6]{img/bipartite.eps}
+  \includegraphics[scale=0.5]{img/bipartite.eps}
   \caption{Bipartitní graf a maximální párování v tomto grafu.}
   \label{imgBipartite}
 \end{figure}
 
 \begin{figure}[ht]
   \centering
-  \includegraphics[scale=0.6]{img/mpath.eps}
+  \includegraphics[scale=0.5]{img/mpath.eps}
   \caption{M-rozšiřující cesta a nové párování M'.}
-  \label{imgBipartite}
+  \label{imgPath}
 \end{figure}
 
 \begin{figure}[ht]
   \centering
   \includegraphics[scale=0.5]{img/trees.eps}
   \caption{M-pokrytý u-strom a M-alternující u-strom.}
-  \label{imgBipartite}
+  \label{imgTrees}
 \end{figure}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Sekvenční varianta algoritmu}
+
+\subsection{Datové typy a struktury}
 
 \begin{figure}[ht]
   \centering
-  \includegraphics[scale=0.6]{img/implementation.eps}
+  \includegraphics[scale=0.5]{img/implementation.eps}
   \caption{Datové struktury uzlu a stromu.}
-  \label{imgBipartite}
+  \label{imgStructure}
 \end{figure}
+
+\subsection{Popis implementace}
+
+
+\subsection{Spuštění aplikace}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Paralelní varianta algoritmu}
+
+\subsection{Analýza problému}
 
 \begin{figure}[ht]
   \centering
   \includegraphics[scale=0.5]{img/XXconflicts.eps}
   \caption{Konflikty B-B a R-R.}
-  \label{imgBipartite}
+  \label{imgXX}
 \end{figure}
 
 \begin{figure}[ht]
   \centering
   \includegraphics[scale=0.5]{img/XYconflicts.eps}
   \caption{Konflikty R-B a B-R.}
-  \label{imgBipartite}
+  \label{imgXY}
 \end{figure}
+
+\subsection{Návrh řešení}
 
 \begin{figure}[ht]
   \centering
   \includegraphics[scale=0.5]{img/inconflict.eps}
   \caption{Řešení R-B konflitu.}
-  \label{imgBipartite}
+  \label{imgConflict}
 \end{figure}
 
 \begin{figure}[ht]
   \centering
   \includegraphics[scale=0.5]{img/haspath.eps}
   \caption{Řešení R-R a B-B konfliktu.}
-  \label{imgBipartite}
+  \label{imgHasPath}
 \end{figure}
 
+\subsection{Datové typy a struktury}
 
+\subsection{Popis implementace}
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Sekvenční verze algoritmu}
-
-\subsubsection*{Návrh}
-
-
-\subsubsection*{Implementace}
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Paralelní verze algoritmu}
-
-\subsubsection*{Návrh}
-
-
-
-\subsubsection*{Implementace}
+\subsection{Spuštění aplikace}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Experimenty}
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Závěr}
 
 %------------------------------------------------------------------------
-\section{Zdroje}
+\begin{thebibliography}{1}
+  
+  \bibitem{bondy:2008} BONDY, J. A. a U. S. R. MURTY. \emph{Graph theory}. New York: Springer, 2008, xii, 651 s. ISBN 978-1-84628-969-9. 
 
-TODO
+\end{thebibliography}
 
 
 %------------------------------------------------------------------------
