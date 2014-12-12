@@ -1,7 +1,8 @@
 #
 # Project: GAL 2014
-# Author: Vendula Poncova
-# Date: 13.11.2014
+# Authors: Vendula Poncova, xponco00
+#          Chernikava Alena, xcerni0700
+# Date:    13.11.2014
 #
 
 NAME=matching

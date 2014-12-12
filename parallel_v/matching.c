@@ -1,6 +1,7 @@
 /*
  * Project: GAL 2014 - parallel version of matching in bipartite graphs
- * Author:  Vendula Poncova, xponco00
+ * Authors: Vendula Poncova, xponco00
+ *          Chernikava Alena, xcerni0700
  * Date:    4.12.2014
  */
 
@@ -288,10 +289,14 @@ void freeGraph(TGraph *graph) {
       edge = edge->next;
       free(old);
     }
+    
+    pthread_mutex_destroy(&(node->mutex));
   }
   
   // free nodes
-  free(graph->nodes);  
+  free(graph->nodes);
+  // free mutex
+  pthread_mutex_destroy(&(graph->mutex));  
 }
 
 //-------------------------------------------------------------------
