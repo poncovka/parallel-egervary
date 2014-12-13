@@ -137,7 +137,21 @@ Konflikt typu B-R je konflikt mezi modrým uzlem $v_1$ a červeným uzlem $v_2$.
 
 Dále je třeba uvažovat o způsobu, jakým se budou synchronizovat procesy. Je zřejmé, že je třeba zaručit, aby s každým uzlem pracoval v jeden okamžik nejvýše jeden proces. Potom bude třeba sychnronizovat přístup ke stromům uzlů. Pokud bychom se inspirovaly návrhem sekvenčního algoritmu, pak informaci o stavu stromu nese pouze strom. Pak při každém přístupu k uzlu je potřeba nejprve zamknout příslušný strom a pak teprve uzel. Pokud očekáváme konflikt, je třeba zamknout oba stromy a konfliktní uzly. Druhou možností je propagovat informaci o stavu stromu do jeho uzlů. Pro přístup k uzlu by pak stačilo zamknutí uzlu.
 
-\subsection{Návrh řešení}
+\subsection{Diskuze k návrhu řešení}
+
+Naše výsledné řešení vyplynulo z několika dalších řešení, která jsme implementovaly a testovaly. 
+
+Konflikt typu R-B jsme původně řešily tak, že proces $1$ vyhrál uzel stromu procesu $2$, pokud jeho strom $T_1$ obsahoval více uzlů než strom $T_2$. Jinak proces $1$ prohrál a byl nucen uvolnit svůj strom. V obou případech došlo k zahození jednoho z konfliktních stromů. Vzhledem k tomu, že další dva typy konfliktů R-R a B-B výpočet urychlují, myslely jsme si, že zpomalení výpočtu konfliktem R-B se ve výsledku neprojeví. Ukázalo se, že to není pravda. K zahazování stromů docházelo neustále a počet vytvořených stromů rostl vzhledem k velikosti vstupního grafu polynomiálně. To značně zpomalovalo výpočet. Efektivnějším řešením konfliktu se ukázala být ignorace konfliktní hrany. Počet vytvořených stromů byl pak lineární a většina $M$-rozšiřujících cest byla nalezena R-R a B-B konflikty.
+
+Synchronizaci procesů jsme zkusily řešit zamykáním stromů. Algoritmus byl tedy velmi podobný sekvenčnímu řešení. Uzly se odkazovaly na stromy a stromy obsahovaly informaci o svém stavu. Rostoucí strom byl ve stavu \texttt{INPROCESS}. Vyvoření APS stromu bylo možné nastavením stavu na \texttt{APSTREE}. Uvolnění stromu proběhlo upravením stavu na \texttt{FREE}. Úprava stavu tak sice byla možná v konstatním čase, ale kdykoliv chtěl proces přidat ke svému stromu nový uzel, musel zamknout svůj strom i strom toho uzlu. Stromy se tak staly úzkým hrdlem programu. To se projevilo zejména tak, že s vyšším počtem dostupných procesorů se časová efektivita programu nezlepšovala.
+
+Řešením tohoto problému byla propagace stavu stromu ze stromu do uzlů. Stav stromu pak bylo možné vyčíst z barvy jeho uzlu. Bílý uzel nepatřil žádnému stromu, zelený uzel patřil APS stromu, modrý a červený uzel patřil zpracovávenému stromu. Toto řešení je výhodné v tom, že pokud chce proces přidat ke svému stromu nový uzel, vyčte z barvy tohoto uzlu, jestli má komunikovat i s jeho stromem, nebo ne. Nevýhodou je časová složitost přebarvení všech uzlů stromu. Důležité však je, že se takto zjednodušila synchronizace, což umožnilo více využívat dostupné procesory.
+
+\subsection{Popis řešení}
+
+Na začátku jsou všechny uzly obarveny na bílo a vloženy do fronty kořenových uzlů. Pokud je kořenová fronta prázdná, proces $i$ se ukončí, jinak z fronty vyzvedne uzel $u$. Pokud je uzel $u$ bilý, proces jej přidá do svého stromu $T_i$ jako kořen a obarví jej na červeno. Proces $i$ začne hledat $M$-rozšiřující cestu. Postupně připojuje k uzlům $v_i$ uzly $v_j$. 
+
+Pokud se pokusí přidat bílý uzel $v_j$, proces uzel obarví na červenou nebo modrou a přivlastní si jej. Pokud se pokusí přidat zelený uzel $v_j$, pak jej ignoruje, neboť uzel patří do APS stromu. Pokud se pokusí přidat červený nebo modrý uzel $v_j$, došlo ke konfliktu. 
 
 \begin{figure}[ht]
   \centering
@@ -146,12 +160,16 @@ Dále je třeba uvažovat o způsobu, jakým se budou synchronizovat procesy. Je
   \label{imgConflict}
 \end{figure}
 
+V případě R-B konfliktu proces uzel ignoruje (viz. obrázek \ref{imgConflict}). V případě R-R a B-B konfliktu proces přistoupí ke stromu uzlu. Jestliže je strom $T_j$ ve stavu \texttt{HASPATH}, pak proces uzel ignoruje. Pokud je strom ve stavu \texttt{INPROCESS}, je nalezena $M$-rozšiřující cesta (viz. obrázek \ref{imgHasPath}). Pak proces změní stav stromu $T_j$ na \texttt{HASPATH} a nastaví stromu ukazatel na konec cesty. Následně změní stav svého stromu $T_i$ na \texttt{HASPATH} a nastaví mu ukazatel na konec cesty. Nakonec upraví párování hrany z $v_i$ do $v_j$.
+
 \begin{figure}[ht]
   \centering
   \includegraphics[scale=0.5]{img/haspath.eps}
   \caption{Řešení R-R a B-B konfliktu.}
   \label{imgHasPath}
 \end{figure}
+
+Pokud proces $i$ nalezne cestu, nastaví stav stromu $T_i$ na \texttt{HASPATH}. Pokud proces $i$ zjistí, že jeho strom je ve stavu \texttt{HASPATH}, pak upraví párování na nalezené cestě, změní jeho stav na \texttt{FREE} a obarví všechny jeho uzly na bílo. Pokud proces $i$ skončí hledání $M$-rozšiřující cesty nalezením APS stromu a strom $T_i$ nevyvolal žádné R-B konflikty, pak proces nastaví stav stromu na \texttt{APSTREE} a obarví všechny jeho uzly na zeleno. Jestliže strom $T_i$ nějaký R-B konflikt vyvolal, pak proces nastaví jeho stav na \texttt{FREE} a obarví všechny jeho uzly na bílo. Nakonec si proces $i$ vyvedne z fronty kořenových uzlů nový uzel a celý proces se opakuje.
 
 \subsection{Datové typy a struktury}
 
