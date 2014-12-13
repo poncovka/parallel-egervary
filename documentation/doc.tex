@@ -109,6 +109,14 @@ Alena Chernikava (\texttt{xcerni07})
 
 \subsection{Analýza problému}
 
+V popisu Egerváryho algoritmu si lze všimnout, že se vždy pracuje pouze s vytvářeným stromem a jeho nejbližším okolím. Pokud je nalezena $M$-rozšiřující cesta, dochází ke změnám na hranách, které patří do tohoto stromu, pokud je nalezen APS strom, přebarví se pouze uzly tohoto stromu.
+
+Jako přirozený způsob paralelizace Egerváryho algoritmu se nabízí zpracovávání grafu více procesy tak, že každý proces bude vytvářet vlastní strom. Pokud bychom zaručily, že takové stromy budou vždy navzájem disjuktní, s ohledem na předcházející paragraf by paralelní zpracování nijak neovlivnilo fungování Egerváryho algoritmu. Na víceprocesorových počítačích by se však výpočet urychlil.
+
+Disjuktnost stromů ale zaručit nemůžeme, proto je třeba najít způsob, jak se vypořádat s konflikty mezi stromy. Obecná situace je taková, že proces $1$ buduje strom $T_1$, proces $2$ buduje strom $T_2$ a proces $1$ bude chtít k uzlu $v_1$ svého stromu $T_1$ připojit uzel $v_2$ stromu $T_2$. Podle barev uzlů $v_1$ a $v_2$ rozlišujeme následující typy konfliktů.
+
+Konflikt typu B-B je konflikt mezi modrým uzlem $v_1$ a modrým uzlem $v_2$. Příklad takového konfliktu je na obrázku \ref{imgXX}. Na obrázku si můžeme všimnout toho, že v takovém případě existuje $M$-rozšiřující cesta z kořene stromu $T_1$ do kořene stromu $T_2$. Nalezení cesty je žádoucí, proto pokud dojde k takovému konfliktu, lze zastavit růst obou stromů, upravit párování na hranách nalezené cesty a uzly ve stromech přebarvit na bílo, aby byly k dispozici dalším stromům. Konflikt typu R-R pro červené uzly $v_1$, $v_2$ je analogický konfliktu B-B (viz. \ref{imgXX}).
+
 \begin{figure}[ht]
   \centering
   \includegraphics[scale=0.5]{img/XXconflicts.eps}
@@ -116,12 +124,18 @@ Alena Chernikava (\texttt{xcerni07})
   \label{imgXX}
 \end{figure}
 
+Konflikt typu R-B je konflikt mezi červených uzlem $v_1$ a modrým uzlem $v_2$. Na obrázku \ref{imgXY} vidíme, že v tomto případě se $M$-rozšiřující cesta nevytvoří. Nabízí se několik možných řešení. Strom $T_1$ by mohl získat uzel $v_2$, pak by ale strom $T2$ nemohl pokračovat ve výpočtu a všechny jeho uzly by musely být obarveny na bílo a uvolněny. Stejně tak by mohl $T_1$ prohrát uzel $v_2$, $T_2$ by dál pokračoval ve výpočtu a $T_1$ by se ukončil. Třetí možností je ignorace konfliktní hrany. $T_2$ by dál pokračoval ve výpočtu, nijak neovlivněn tímto konfliktem. $T_1$ by taktéž pokračoval ve výpočtu, ale pokud by skončil nalezením APS stromu, tak by své uzly obarvil na bílo a vytvořený strom zahodil.
+
+Konflikt typu B-R je konflikt mezi modrým uzlem $v_1$ a červeným uzlem $v_2$. Z obrázku \ref{imgXY} je patrné, že v takovém případě by z uzlu $v_2$ vedly dvě hrany náležící párování $M$. $M$ by potom nebylo platné párování. Párování může být dočasně neplatné jen v případě, že nějaký strom nalezl $M$-rozšiřující cestu a upravuje párování na hranách této cesty. Pokud jsou oba stromy $T_1$, $T_2$ ve fázi růstu pak párování na hranách vycházejících z uzlů těchto dvou stromů je platné a neměnné. V našem případě předpokládáme, že oba stromy rostou, proto k B-R konfliktu nemůže dojít.
+
 \begin{figure}[ht]
   \centering
   \includegraphics[scale=0.5]{img/XYconflicts.eps}
   \caption{Konflikty R-B a B-R.}
   \label{imgXY}
 \end{figure}
+
+Dále je třeba uvažovat o způsobu, jakým se budou synchronizovat procesy. Je zřejmé, že je třeba zaručit, aby s každým uzlem pracoval v jeden okamžik nejvýše jeden proces. Potom bude třeba sychnronizovat přístup ke stromům uzlů. Pokud bychom se inspirovaly návrhem sekvenčního algoritmu, pak informaci o stavu stromu nese pouze strom. Pak při každém přístupu k uzlu je potřeba nejprve zamknout příslušný strom a pak teprve uzel. Pokud očekáváme konflikt, je třeba zamknout oba stromy a konfliktní uzly. Druhou možností je propagovat informaci o stavu stromu do jeho uzlů. Pro přístup k uzlu by pak stačilo zamknutí uzlu.
 
 \subsection{Návrh řešení}
 
