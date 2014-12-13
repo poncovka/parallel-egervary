@@ -148,6 +148,14 @@ Alena Chernikava (\texttt{xcerni07})
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Experimenty}
 
+\subsection{Generování vstupních souborů}
+
+Pro vygenerování vstupních souborů jsme v jazyce \texttt{python 2.7} s použitím knihovny \texttt{python-igraph 0.7} napsaly skript \texttt{generator.py}. 
+Skript generuje bipartitní neorientované grafy $G=(X,Y,E)$ a ukladá je do souborů \texttt{graph\_x\_y\_p\_m}, kde $x$ je počet uzlů v množině $X$, $y$ je počet uzlů v množině $Y$, $p$ je procentuální vyjádření počtu hran množiny $E$ a $m$ je počet hran v maximálním párování. Pak soubor obsahuje počet uzlů množiny $X \cup Y$, počet hran množiny $E$ a výčet všech dvojic uzlů, mezi kterými existuje v $E$ hrana, přičemž každá hrana je reprezentovaná právě jednou.
+
+Skript je umístěný ve složce \texttt{graph}. Příkazem \texttt{python2.7 generator.py} se podle parametrů nastavených ve scriptu vygeneruje soubor s náhodným grafem. Příkaz \texttt{python2.7 generator.py test} vygeneruje všechny testovací soubory pro naše experimenty. Knihovna \texttt{python-igraph} na školním serveru \texttt{merlin} není dostupná, proto v archivu odevzdáváme část testovacích souborů.
+
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Závěr}
@@ -156,6 +164,8 @@ Alena Chernikava (\texttt{xcerni07})
 \begin{thebibliography}{1}
   
   \bibitem{bondy:2008} BONDY, J. A. a U. S. R. MURTY. \emph{Graph theory}. New York: Springer, 2008, xii, 651 s. ISBN 978-1-84628-969-9. 
+  
+  \bibitem{igraph:2003} \emph{Python-igraph} [online]. \copyright 2003-2013 [cit. 2014-12-13]. Dostupné z: http://igraph.org/python/ 
 
 \end{thebibliography}
 
