@@ -1,6 +1,7 @@
 /*
  * Project: GAL 2014 - sequence version of matching in bipartite graphs
- * Author:  Vendula Poncova, xponco00
+ * Authors: Vendula Poncova, xponco00
+ *          Chernikava Alena, xcerni07
  * Date:    13.11.2014
  */
 
@@ -9,6 +10,8 @@
 
 #define IFDEBUG(y) //y;
 #define DEBUG(x)   //fprintf(stderr, "DEBUG: " x "\n");
+
+//------------------------------------------------------------------- ENUMS
 
 enum errors {
   EOK = 0,
@@ -26,6 +29,8 @@ enum treestat {
   APSTREE
 };
 
+//------------------------------------------------------------------- TYPES
+
 typedef struct tGraph TGraph;
 typedef struct tTree TTree;
 typedef struct tNode TNode;
@@ -36,6 +41,7 @@ typedef struct tItem TItem;
 
 struct tGraph {
   int n;
+  int m;
   TNode *nodes;
   TTree *trees;
 };
@@ -70,196 +76,7 @@ struct tItem {
   TItem *next;
 };
 
-int initGraph(TGraph *graph, int n) {
-
-  // init graph
-  graph->n = n;
-  graph->trees = NULL;
-  graph->nodes = malloc(n * sizeof(TNode));
-  
-  if(graph->nodes == NULL) {
-    return EALLOC;
-  }
-  
-  // init nodes
-  TNode *node = NULL;
-  for(int i = 0; i < n; i++) {\
-    node = &(graph->nodes[i]);
-
-    node->id = i;
-    node->edges = NULL;
-    node->entry = NULL;
-    node->tree = NULL;    
-  }
-  
-  return EOK;
-}
-
-void freeGraph(TGraph *graph) {
-
-  // free edges  
-  for(int i=0; i < graph->n; i++) {
-    TNode *node = &(graph->nodes[i]);
-    TEdge *edge = node->edges;
-    
-    while (edge != NULL) {
-      TEdge *old = edge;
-      edge = edge->next;
-      free(old);
-    }
-  }
-  
-  // free nodes
-  free(graph->nodes);
-  
-  // free trees
-  TTree *tree = graph->trees;
-  while(tree != NULL) {
-    TTree *old = tree;
-    tree = tree->next;
-    free(old);
-  }
-  
-}
-
-int addEdge(TGraph *graph, int idA, int idB) {
-
-  // check input
-  if (idA == idB || idA >= graph->n || idB >= graph->n) {
-    return EINPUT;
-  }
-
-  // get nodes
-  TNode *A = &(graph->nodes[idA]);
-  TNode *B = &(graph->nodes[idB]);
-    
-  // allocate edges
-  TEdge *edgeAB = malloc(sizeof(TEdge));
-  TEdge *edgeBA = malloc(sizeof(TEdge));
-  
-  if (edgeAB == NULL || edgeBA == NULL) {
-    return EALLOC;  
-  }
-  
-  // init edge from A to B
-  edgeAB->M = 0;
-  edgeAB->node = B;
-  edgeAB->reversed = edgeBA;
-  edgeAB->next = A->edges;
-  A->edges = edgeAB;
-  
-  // init edge from B to A
-  edgeBA->M = 0;
-  edgeBA->node = A;
-  edgeBA->reversed = edgeAB;
-  edgeBA->next = B->edges;
-  B->edges = edgeBA;
-  
-  return EOK;
-}
-
-int loadGraph(TGraph *graph, FILE *f) {
-
-  // init
-  int n = 0, m = 0, x = 0, y = 0;
-  
-  // read numbers of vertices and edges
-  if(fscanf(f, "%d %d", &n, &m) != 2) {
-    return EINPUT;
-  }
-
-  // init graph
-  initGraph(graph, n);
-  
-  // read edges
-  for (int i = 1; i <= m; i++) {
-  
-    if(fscanf(f, "%d %d", &x, &y) != 2) {
-      return EINPUT;
-    }
-    
-    addEdge(graph, x, y);
-  }
-    
-  return EOK;
-}
-
-void printGraph(TGraph *graph, FILE *f) {
-
-  fprintf(f, "<Graph>\n");
-  for(int i = 0; i < graph->n; i++) {
-  
-    TNode *node = &(graph->nodes[i]);
-    if (node != NULL) {
-    
-      fprintf(f, "Node %d: ", node->id);  
-
-      TEdge *edge = node->edges;      
-      while(edge != NULL) {
-      
-        fprintf(f, "%d[%d] ", edge->node->id, edge->M);  
-        edge = edge->next;
-      }
-      
-      fprintf(f, "\n");  
-    }
-  }
-}
-
-void printMatching(TGraph *graph, FILE *f) {
-
-  int M = 0;
-  fprintf(f, "<Matching>\n");
-  
-  // print edges in matching
-  for(int i = 0; i < graph->n; i++) {
-  
-    TNode *node = &(graph->nodes[i]);
-    if (node != NULL) {
-    
-      TEdge *edge = node->edges;      
-      while(edge != NULL) {
-        
-        if (node->id < edge->node->id && edge->M) {      
-          fprintf(f, "(%d,%d) ", node->id, edge->node->id); 
-          M++;
-        }
-
-        edge = edge->next;
-      }
-    }
-  }
-  
-  if (M != 0) {
-    fprintf(f, "\n\n");  
-  }
-  
-  // print number of edges in matching
-  fprintf(f, "%d\n", M);  
-
-}
-
-TTree *createTree(TGraph *graph) {
-
-  // allocate tree
-  TTree *tree = malloc(sizeof(TTree));
-  if (tree == NULL) {
-    return NULL;
-  }
-  
-  // init tree
-  tree->status = ACTUAL;
-  tree->root = NULL;
-  tree->next = graph->trees;
-  graph->trees = tree;
-  
-  return tree;
-}
-
-
-int inAPSTree (TNode *x) {
-  return (x->tree != NULL && x->tree->status == APSTREE);
-}
+//------------------------------------------------------------------- QUEUE
 
 void initQueue(TQueue *Q) {
   Q->first = NULL;
@@ -313,10 +130,218 @@ void* dequeue(TQueue *Q) {
 }
 
 void freeQueue(TQueue *Q) {
-
   while(!isEmpty(Q)) dequeue(Q);
-
 }
+
+//------------------------------------------------------------------- GRAPH
+
+int initGraph(TGraph *graph, int n) {
+
+  // init graph
+  graph->n = n;
+  graph->m = 0;
+  graph->trees = NULL;
+  graph->nodes = malloc(n * sizeof(TNode));
+  
+  if(graph->nodes == NULL) {
+    return EALLOC;
+  }
+  
+  // init nodes
+  TNode *node = NULL;
+  for(int i = 0; i < n; i++) {\
+    node = &(graph->nodes[i]);
+
+    node->id = i;
+    node->edges = NULL;
+    node->entry = NULL;
+    node->tree = NULL;    
+  }
+  
+  return EOK;
+}
+
+//-------------------------------------------------------------------
+
+void freeGraph(TGraph *graph) {
+
+  // free edges  
+  for(int i=0; i < graph->n; i++) {
+    TNode *node = &(graph->nodes[i]);
+    TEdge *edge = node->edges;
+    
+    while (edge != NULL) {
+      TEdge *old = edge;
+      edge = edge->next;
+      free(old);
+    }
+  }
+  
+  // free nodes
+  free(graph->nodes);
+  
+  // free trees
+  TTree *tree = graph->trees;
+  while(tree != NULL) {
+    TTree *old = tree;
+    tree = tree->next;
+    free(old);
+  }
+  
+}
+
+//-------------------------------------------------------------------
+
+int addEdge(TGraph *graph, int idA, int idB) {
+
+  // check input
+  if (idA == idB || idA >= graph->n || idB >= graph->n) {
+    return EINPUT;
+  }
+
+  // get nodes
+  TNode *A = &(graph->nodes[idA]);
+  TNode *B = &(graph->nodes[idB]);
+    
+  // allocate edges
+  TEdge *edgeAB = malloc(sizeof(TEdge));
+  TEdge *edgeBA = malloc(sizeof(TEdge));
+  
+  if (edgeAB == NULL || edgeBA == NULL) {
+    return EALLOC;  
+  }
+  
+  // init edge from A to B
+  edgeAB->M = 0;
+  edgeAB->node = B;
+  edgeAB->reversed = edgeBA;
+  edgeAB->next = A->edges;
+  A->edges = edgeAB;
+  
+  // init edge from B to A
+  edgeBA->M = 0;
+  edgeBA->node = A;
+  edgeBA->reversed = edgeAB;
+  edgeBA->next = B->edges;
+  B->edges = edgeBA;
+  
+  graph->m++;
+
+  return EOK;
+}
+
+//-------------------------------------------------------------------
+
+int loadGraph(TGraph *graph, FILE *f) {
+
+  // init
+  int n = 0, m = 0, x = 0, y = 0;
+  
+  // read numbers of vertices and edges
+  if(fscanf(f, "%d %d", &n, &m) != 2) {
+    return EINPUT;
+  }
+
+  // init graph
+  initGraph(graph, n);
+  
+  // read edges
+  for (int i = 1; i <= m; i++) {
+  
+    if(fscanf(f, "%d %d", &x, &y) != 2) {
+      return EINPUT;
+    }
+    
+    addEdge(graph, x, y);
+  }
+    
+  return EOK;
+}
+
+//-------------------------------------------------------------------
+
+void printGraph(TGraph *graph, FILE *f) {
+
+  fprintf(f, "<Graph>\n");
+  for(int i = 0; i < graph->n; i++) {
+  
+    TNode *node = &(graph->nodes[i]);
+    if (node != NULL) {
+    
+      fprintf(f, "Node %d: ", node->id);  
+
+      TEdge *edge = node->edges;      
+      while(edge != NULL) {
+      
+        fprintf(f, "%d[%d] ", edge->node->id, edge->M);  
+        edge = edge->next;
+      }
+      
+      fprintf(f, "\n");  
+    }
+  }
+}
+
+//-------------------------------------------------------------------
+
+void printMatching(TGraph *graph, FILE *f) {
+
+  int M = 0;
+  fprintf(f, "<Matching>\n");
+  
+  // print edges in matching
+  for(int i = 0; i < graph->n; i++) {
+  
+    TNode *node = &(graph->nodes[i]);
+    if (node != NULL) {
+    
+      TEdge *edge = node->edges;      
+      while(edge != NULL) {
+        
+        if (node->id < edge->node->id && edge->M) {      
+          fprintf(f, "(%d,%d) ", node->id, edge->node->id); 
+          M++;
+        }
+
+        edge = edge->next;
+      }
+    }
+  }
+  
+  if (M != 0) {
+    fprintf(f, "\n\n");  
+  }
+
+  fprintf(f, "<Nodes>\n%d\n\n", graph->n);
+  fprintf(f, "<Edges>\n%d\n\n", graph->m);
+  fprintf(f, "<M>\n%d\n", M);  
+}
+
+//------------------------------------------------------------------- TREE
+
+TTree *createTree(TGraph *graph) {
+
+  // allocate tree
+  TTree *tree = malloc(sizeof(TTree));
+  if (tree == NULL) {
+    return NULL;
+  }
+  
+  // init tree
+  tree->status = ACTUAL;
+  tree->root = NULL;
+  tree->next = graph->trees;
+  graph->trees = tree;
+  
+  return tree;
+}
+
+
+int inAPSTree (TNode *x) {
+  return (x->tree != NULL && x->tree->status == APSTREE);
+}
+
+//------------------------------------------------------------------- 
 
 void processPath(TTree *tree, TNode *end) {
 
@@ -339,6 +364,8 @@ void processPath(TTree *tree, TNode *end) {
     
   tree->status = NONE;
 }
+
+//------------------------------------------------------------------- APPLY APS
 
 int _applyAPS(TTree *tree, TQueue *Q) {
 
@@ -432,6 +459,8 @@ int applyAPS(TTree *tree) {
   return error;
 }
 
+//------------------------------------------------------------------- FIND MATCHING
+
 int findMatching(TGraph *graph) {
 
   int error = EOK;
@@ -469,10 +498,8 @@ int findMatching(TGraph *graph) {
   return EOK;
 }
 
-/////////////////////////////////////////////////////
-/**
- * Main function
- */
+//------------------------------------------------------------------- MAIN
+
 int main (int argc, char *argv[])
 {
   int error = EOK;
