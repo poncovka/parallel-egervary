@@ -184,7 +184,7 @@ Konflikt typu B-B je konflikt mezi modrým uzlem $v_1$ a modrým uzlem $v_2$. P�
   \label{imgXX}
 \end{figure}
 
-Konflikt typu R-B je konflikt mezi červených uzlem $v_1$ a modrým uzlem $v_2$. Na obrázku \ref{imgXY} vidíme, že v tomto případě se $M$-rozšiřující cesta nevytvoří. Nabízí se několik možných řešení. Strom $T_1$ by mohl získat uzel $v_2$, pak by ale strom $T2$ nemohl pokračovat ve výpočtu a všechny jeho uzly by musely být obarveny na bílo a uvolněny. Stejně tak by mohl $T_1$ prohrát uzel $v_2$, $T_2$ by dál pokračoval ve výpočtu a $T_1$ by se ukončil. Třetí možností je ignorace konfliktní hrany. $T_2$ by dál pokračoval ve výpočtu, nijak neovlivněn tímto konfliktem. $T_1$ by taktéž pokračoval ve výpočtu, ale pokud by skončil nalezením APS stromu, tak by své uzly obarvil na bílo a vytvořený strom zahodil. Ignorace hrany je možná, neboť pokud existuje $M$-rozšiřující cesta z kořenového uzlu stromu $T_1$ procházející hranou $v_1 v_2$ končící v nějakém uzlu $w$, pak též musí existovat cesta z kořenového uzlu stromu $T_2$ procházející uzlem $v_2$ a končící v uzlu $w$. Pokud strom $T_1$ bude hranu $v_1 v_2$ ignorovat, pak cestu nalezne strom $T_2$.
+Konflikt typu R-B je konflikt mezi červených uzlem $v_1$ a modrým uzlem $v_2$. Na obrázku \ref{imgXY} vidíme, že v tomto případě se $M$-rozšiřující cesta nevytvoří. Nabízí se několik možných řešení. Strom $T_1$ by mohl získat uzel $v_2$, pak by ale strom $T2$ nemohl pokračovat ve výpočtu a všechny jeho uzly by musely být obarveny na bílo a uvolněny. Stejně tak by mohl $T_1$ prohrát uzel $v_2$, $T_2$ by dál pokračoval ve výpočtu a $T_1$ by se ukončil. Třetí možností je ignorace konfliktní hrany, kdy $T_1$ i $T_2$ dál pokračují ve výpočtu, nijak neovlivněné tímto konfliktem. Ignorace hrany je možná, neboť pokud existuje $M$-rozšiřující cesta z kořenového uzlu stromu $T_1$ procházející hranou $v_1 v_2$ končící v nějakém uzlu $w$, pak též musí existovat cesta z kořenového uzlu stromu $T_2$ procházející uzlem $v_2$ a končící v uzlu $w$. Pokud strom $T_1$ bude hranu $v_1 v_2$ ignorovat, pak cestu nalezne strom $T_2$. 
 
 Konflikt typu B-R je konflikt mezi modrým uzlem $v_1$ a červeným uzlem $v_2$. Z obrázku \ref{imgXY} je patrné, že v takovém případě by z uzlu $v_2$ vedly dvě hrany náležící párování $M$. $M$ by potom nebylo platné párování. Párování může být dočasně neplatné jen v případě, že nějaký strom nalezl $M$-rozšiřující cestu a upravuje párování na hranách této cesty. Pokud jsou oba stromy $T_1$, $T_2$ ve fázi růstu pak párování na hranách vycházejících z uzlů těchto dvou stromů je platné a neměnné. V našem případě předpokládáme, že oba stromy rostou, proto k B-R konfliktu nemůže dojít.
 
@@ -229,7 +229,7 @@ V případě R-B konfliktu proces uzel ignoruje (viz. obrázek \ref{imgConflict}
   \label{imgHasPath}
 \end{figure}
 
-Pokud proces $i$ nalezne cestu, nastaví stav stromu $T_i$ na \texttt{HASPATH}. Pokud proces $i$ zjistí, že jeho strom je ve stavu \texttt{HASPATH}, pak upraví párování na nalezené cestě, změní jeho stav na \texttt{FREE} a obarví všechny jeho uzly na bílo. Pokud proces $i$ skončí hledání $M$-rozšiřující cesty nalezením APS stromu a strom $T_i$ nevyvolal žádné R-B konflikty, pak proces nastaví stav stromu na \texttt{APSTREE} a obarví všechny jeho uzly na zeleno. Jestliže strom $T_i$ nějaký R-B konflikt vyvolal, pak proces nastaví jeho stav na \texttt{FREE} a obarví všechny jeho uzly na bílo. Nakonec si proces $i$ vyzvedne z fronty kořenových uzlů nový uzel a celý proces se opakuje.
+Pokud proces $i$ nalezne cestu, nastaví stav stromu $T_i$ na \texttt{HASPATH}. Pokud proces $i$ zjistí, že jeho strom je ve stavu \texttt{HASPATH}, pak upraví párování na nalezené cestě, změní jeho stav na \texttt{FREE} a obarví všechny jeho uzly na bílo. Pokud proces $i$ skončí hledání $M$-rozšiřující cesty nalezením APS stromu, pak nastaví stav stromu na \texttt{APSTREE} a obarví všechny jeho uzly na zeleno. Nakonec si proces $i$ vyzvedne z fronty kořenových uzlů nový uzel a celý proces se opakuje.
 
 \subsection{Popis implementace}
 
@@ -241,9 +241,9 @@ Graf lze inicializovat, vytvořit a zrušit funkcemi \texttt{initGraph}, \texttt
 
 Funkce \texttt{addNodeToTree} se snaží k uzlu \texttt{nodeA} stromu \texttt{treeA} přidat uzel \texttt{nodeB} přes hranu \texttt{AB} s očekávanou příslušností k párování \texttt{M}. Funkce vrací hodnotu z výčtu: \texttt{OK}, \texttt{ABORT}, \texttt{IGNORE}, \texttt{CONFLICT} nebo \texttt{PATH}. 
 
-Funkce \texttt{applyAPS} se pomocí stromu \texttt{tree} snažít nalézt $M$-rozšiřující cestu. Pokud nalezne cestu, zavolá na ni \texttt{processPath}, funkcí \texttt{colourNodes} obarví uzly stromu na bílo a vrátí \texttt{OK}. Pokud nalezne APS strom, obarví uzly na zeleno a vrátí \texttt{OK}. Jinak obarví uzly na bílo a vrátí \texttt{ABORT}.
+Funkce \texttt{applyAPS} se pomocí stromu \texttt{tree} snažít nalézt $M$-rozšiřující cestu. Pokud nalezne cestu, zavolá na ni \texttt{processPath}, funkcí \texttt{colourNodes} obarví uzly stromu na bílo a vrátí \texttt{OK}. Pokud nalezne APS strom, obarví uzly na zeleno a vrátí \texttt{OK}.
 
-Funkce \texttt{findMatching} zpracovává frontu kořenových uzlů. Pokud fronta není prázdná, vybere se uzel, který je bílý a žádná jeho hrana není v párování. Vytvoří se strom, kde vybraný uzel bude jeho kořenovým uzlem, a zavolá se funkce \texttt{applyAPS}. Pokud funkce vrátí \texttt{ABORT}, uzel se vrátí zpátky do fronty. Funkce \texttt{findMatchingParallel} vytváří a spouští vlákna nad funkcí \texttt{findMatching} s daty typu \texttt{TThreadData}. Funkce \texttt{main} kontroluje vstupní parametry, vytváří ze vstupního souboru graf a volá pro něj funkci \texttt{findMatchingParallel}.
+Funkce \texttt{findMatching} zpracovává frontu kořenových uzlů. Pokud fronta není prázdná, vybere se uzel, který je bílý a žádná jeho hrana není v párování. Vytvoří se strom, kde vybraný uzel bude jeho kořenovým uzlem, a zavolá se funkce \texttt{applyAPS}. Funkce \texttt{findMatchingParallel} vytváří a spouští vlákna nad funkcí \texttt{findMatching} s daty typu \texttt{TThreadData}. Funkce \texttt{main} kontroluje vstupní parametry, vytváří ze vstupního souboru graf a volá pro něj funkci \texttt{findMatchingParallel}.
 
 \subsection{Spuštění aplikace}
 
@@ -263,41 +263,87 @@ Skript je umístěný ve složce \texttt{graph}. Příkazem \texttt{python2.7 ge
 
 Testovací soubory jsme vygenerovaly pro grafy $G=(X,Y,E)$, kde $|X|=|Y|$, s velikostmi množiny $X$ 10, 100, 500, 1000 a hustotami hran v $E$ 0.1, 0.25, 0.75, 0.99. Snažily jsme se tak pokrýt různé velikosti grafů, řídké i husté.
 
+Všechny testovací soubory jsou umístěné v archivu \texttt{GAL2014\_testfiles.zip} na adrese:
+{
+\centering
+\texttt{https://www.dropbox.com/s/dpazvpcltv3hdi2/GAL2014\_testfiles.zip?dl=0}
+}
+
 \subsection{Spuštění testů}
 
 Testy se spouští příkazem \texttt{./test.sh} ve složce \texttt{test}. Skript přeloží programy, načte testovací soubory ze složky \texttt{test/files} a pro každý soubor zavolá paralelní a sekvenční program pro různé počty vláken a dostupných procesorů. Výsledky se ukládají do souboru \texttt{results.out}.
 
 \subsection{Vyhodnocení testů}
 
-Experimenty jsme provedly na školním serveru \texttt{merlin} pro maximální počet procesorů 12 a maximální počet vláken 15. Větší počet vláken nám server pro některé grafy nedovolil vytvořit. Zaměřily jsme se na časovou složitost algoritmů v závislosti na různých veličinách. Měřily jsme celkový čas běhu programu.
+Experimenty jsme provedly na školním serveru \texttt{merlin} pro maximální počet procesorů 12 a maximální počet vláken 15. Větší počet vláken nám server pro některé grafy nedovolil vytvořit. Zaměřily jsme se na časovou složitost algoritmů v závislosti na různých veličinách. Měřily jsme celkový čas běhu programu. V grafech je udávaný v sekundách.
 
 
-%%%% STARE
+Na obrázku \ref{imgSNT} je znázorněná závislost času na počtu vrcholů pro hustoty 0.1, 0.25, 0.75 a 0.99 v sekvenčním algoritmu. Na obrázku vidíme, že pro větší a hustější grafy trvá výpočet déle než pro menší a řidší. Sekvenční algoritmus se tedy chová tak, jak jsme očekávaly.
 
-Experimenty byly provedeny na sadě testovacích souborů rozdělených do třech skupin: zřídké, střední, husté. 
-Nasledující zíávislosti jsou zobrazeny na grafech: závislot času na počtu vrcholů, závislot času počtu procesorů, závislost času na počtu vlaken, závislost času na hustotě grafu.
+\begin{figure}[ht]
+  \centering
+  \includegraphics[scale=0.8]{img/sequence_n_time.eps}
+  \caption{Závislost času na počtu vrcholů v sekvenčním algoritmu.}
+  \label{imgSNT}
+\end{figure}
+
+Obrázek \ref{imgPNT} znázorňuje závislost času na počtu vrcholů pro 10 procesorů a 6 vláken v paralelním algoritmu. Opět vidíme, že výpočet je časově náročnejší pro velké a husté grafy.
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[scale=0.8]{img/paral_n_time.eps}
+  \caption{Závislost času na počtu vrcholů pro 10 procesorů a 6 vláken v paralelním algoritmu.}
+  \label{imgPNT}
+\end{figure}
+
+Závislost času na počtu procesorů v paralelním algoritmu je znázorněna obrázkem \ref{imgPPT}. Test proběhl pro 10 spuštěných vláken. Můžeme si všimnout, že křivky mají pro různé hustoty stejný průběh. Zpočátku doba běhu klesá, ale od čtvrtého dostupného procesoru je více méně konstatní. Značí to, že algoritmus není schopný dostatečně využít dostupné zdroje.
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[scale=0.8]{img/paral_p_time.eps}
+  \caption{Závislost času na počtu procesorů pro 10 vláken v paralelním algoritmu.}
+  \label{imgPPT}
+\end{figure}
+
+Na dalším obrázku \ref{imgPTT} je závislost času na počtu vláken pro 10 procesorů v paralelním algoritmu. Můžeme pozorovat, že pro velmi husté grafy je počet spuštěných vláken velmi významnou veličinou. Zajímavý je obrázek \ref{imgPT1}, který znázorňuje stejnou závislost pro jeden procesor, je velmi podobný obrázku \ref{imgPTT}. Znamená to, že algoritmus je časově efektivnější pro větší počet vláken i v případě, že má k dispozici pouze jeden procesor. Vlákna tedy nemohou běžet paralelně.
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[scale=0.8]{img/paral_t_time.eps}
+  \caption{Závislost času na počtu vláken pro 10 procesorů v paralelním algoritmu.}
+  \label{imgPTT}
+\end{figure}
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[scale=0.8]{img/paral_t_1.eps}
+  \caption{Závislost času na počtu vláken pro 1 procesor v paralelním algoritmu.}
+  \label{imgPT1}
+\end{figure}
+
+Nakonec obrázek \ref{imgPPS} srovnává časové závislosti sekvenčního a paralelního algoritmu na počtu vrcholů. Paralelní algoritmus běžel na 12 procesorech s 15 vlákny. Vidíme, že křivky sekvenčního algoritmu jsou strmější než u paralelního algoritmu. Paralelní algoritmus má tedy lepší časovou složitost než sekvenční algoritmus.
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[scale=0.8]{img/paral_sequence.eps}
+  \caption{Závislost času na velikosti grafu v sekvenčním algoritmu a pro 12 procesorů a 15 vláken v paralelním algoritmu.}
+  \label{imgPPS}
+\end{figure}
+
+Z uvedené experimenty v podstatě potvrdily očekávané chování navržených algoritmů. Především jsme empiricky dokázaly, že paralelní algoritmus má lepší časovou složitost než sekvenční algoritmus. 
+
+Překvapivým zjištěním byl vliv počtu vláken na dobu běhu na jednom procesoru. Takové chování si vysvětlujeme tak, že s větším počtem vláken roste počet rozpracovaných stromů a ačkoliv vlákna nemohou pracovat paralelně, zvyšuje se pravděpodobnost nalezení R-R nebo B-B konfliktu, což urychluje výpočet. Dále je třeba zohlednit omezení serveru \texttt{merlin}, který nám nedovolil pracovat s více než 20 vlákny, ačkoliv při testování na jiných počítačích se doba běhu snižovala až do počtu 50 až 100 vláken. Bylo by zajímavé zkoumat takové chování s souvislosti s větším počtem procesorů. Je tak pravděpodobné, že test, který zkoumal závislost času na počtu procesorů, není zcela korektní, neboť větší množství vláken by možná dokázalo využít všechny dostupné procesory.
 
 
 
-Experimenty byly provedeny na 4-jádrovém jednoprocesorovém systému.
-Výsledky experimentů jsou zobrazeny na následujících grafech:
 
-S růstem počtu vláken klesá čas zpracování grafu. Na začátku čas klesá velice výrazně, ale pak klesání se zastaví. Důvody k takovému chování jsou následující
-\begin{enumerate}
-\item čím počet vláken je bližší k počtu vrcholu tím víc konfliktů vzniká a tím více času procesy budou blokovaní
-\item čím víc vláken, tím rychleji docházejí volné nepokryté vrcholy.
-\item při daném návrhu maximální efektivní počet vláken se rovná počtu vrcholů.
-"\end{enumerate}
 
-Taky se objevilo, že čas násobné zpracování jednoho grafu paralelní verzi se stejným počtem vláken může dávat rozdílné výsledky. A to je způsobeno tím, že počet vznikajících konfliktů záleží na vzdálenosti kořenových uzlu vláken.
 
-Cesty na zlepšování algoritmu:
-    Úzkým hrdlem v tomto návrhu jsou konflikty. Čím méně konfliktů, tím rychleji se graf zpracovává. To znamená, že by mohlo dojit ke zrychlení, jestli by se vlákna pouštěly na co nejvíc vzdálené uzly od sebe.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Závěr}
 
-Implementovaly jsme Egerváyho algoritmus pro výpočet maximálního párování v bipartitních grafech a navrhly jsme a implementovaly jeho paralelní variantu. Výsledné programy jsme otestovaly pro různé vstupní programy, přičemž jsme se zaměřily především na časovou složitost.
+Implementovaly jsme Egerváryho algoritmus pro výpočet maximálního párování v bipartitních grafech a navrhly jsme a implementovaly jeho paralelní variantu. Výsledné programy jsme otestovaly pro různé vstupní programy, přičemž jsme se zaměřily především na časovou složitost. Testy potvrdily, že paralelní algoritmus má lepší časovou složitost než sekvenční. Dále se ukázalo, že počet vláken má vliv na dobu běhu programu i v případě, že program běží na jednoprocesorovém počítači.
 
 %------------------------------------------------------------------------
 \begin{thebibliography}{1}
