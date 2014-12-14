@@ -10,6 +10,7 @@
 # python generator.py
 
 import random
+import sys
 from igraph import *
 
 # set max nodes you want to generate
@@ -45,6 +46,12 @@ def generateGraph(n1, n2, p):
   fname = "{}_{}_{}_{}_{}".format(FILENAME, n1, n2, int(p*100), len(m))
   writeGraph(fname, g, m)
 
+def generateGraphForTest():
+  for p in [.66,.37]:
+    for n1 in [1737, 100, 200, 500, 606, 909, 1074]:
+        generateGraph(n1, n1, p)
+
+
 def generateRandomGraph():
   n1 = random.randrange(0, MAXNODES) 
   n2 = random.randrange(0, MAXNODES) if random.random() < 0.2 else n1
@@ -53,6 +60,10 @@ def generateRandomGraph():
   generateGraph(n1, n2, p)
   
 if __name__ == "__main__":
-  generateRandomGraph()
-
-  
+  if len(sys.argv) == 1:
+    generateRandomGraph()
+  else:
+      if sys.argv[1] == 'test':  
+        generateGraphForTest()
+      else:
+        print "Wrong argument" 
