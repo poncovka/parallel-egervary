@@ -1,6 +1,7 @@
 /*
  * Project: GAL 2014 - parallel version of matching in bipartite graphs
- * Author:  Vendula Poncova, xponco00
+ * Authors: Vendula Poncova, xponco00
+ *          Chernikava Alena, xcerni0700
  * Date:    4.12.2014
  */
 
@@ -10,14 +11,8 @@
 #include <stdarg.h>
 
 #define DEBUG(y) //y;
-#define INLINE   inline
 
 //------------------------------------------------------------------- ENUMS
-
-enum booleans {
-  FALSE = 0,
-  TRUE = 1
-};
 
 enum errors {
   EOK = 0,
@@ -31,15 +26,16 @@ enum errors {
 };
 
 enum colours {
- RED = 0,
- BLUE,
- GREEN,
- WHITE
+  RED = 0,
+  BLUE,
+  GREEN,
+  WHITE
 };
 
 enum treestat {
   FREE = 0,
   INPROCESS,
+  HASPATH,
   APSTREE
 };
 
@@ -47,9 +43,8 @@ enum retstat {
   OK = 0,
   ABORT,
   IGNORE,
-  PATH,
-  LOOSER,
-  ERROR
+  CONFLICT,
+  PATH
 };
 
 //------------------------------------------------------------------- TYPES
@@ -58,13 +53,13 @@ typedef struct tGraph TGraph;
 typedef struct tTree TTree;
 typedef struct tNode TNode;
 typedef struct tEdge TEdge;
+
 typedef struct tList TList;
 typedef struct tQueue TQueue;
 typedef struct tItem TItem;
 
 typedef pthread_t TThread;
 typedef pthread_mutex_t TMutex;
-typedef pthread_cond_t TCondition;
 typedef struct tThreadData TThreadData;
 
 struct tList {
@@ -83,10 +78,10 @@ struct tItem {
 
 struct tGraph {
   int n;
+  int m;
   TNode *nodes;
   
   int ntree;
-  TTree *trees;
   TMutex mutex;
 };
 
@@ -94,19 +89,12 @@ struct tTree {
   int id;
   int status;
   int owner; 
-  int count; 
-  
-  int looser;
-  int hadpath;
 
   TNode *root;
+  TNode *pathEnd;
+  
   TList nodes;
-  
   TMutex mutex;
-  TMutex cmutex;
-  TCondition condition;
-  
-  TTree *next;
 };
 
 struct tNode {
@@ -133,17 +121,6 @@ struct tThreadData {
   TQueue *queue;
   TMutex *mutex;
 };
-
-//------------------------------------------------------------------- GLOBALS
-
-int conflicts = 0;
-TMutex confmutex;
-
-void addConflict() {
-  pthread_mutex_lock(&(confmutex));
-  conflicts++;
-  pthread_mutex_unlock(&(confmutex));
-}
 
 //------------------------------------------------------------------- PRINT
 
@@ -173,11 +150,11 @@ void initList(TList *L) {
   L->last = NULL;
 }
 
-int isListEmpty(TList *L) {
+int isEmptyList(TList *L) {
   return (L->last == NULL);
 }
 
-int enlist(TList *L, void *item) {
+int pushList(TList *L, void *item) {
 
   TItem *litem = malloc(sizeof(TItem));
   
@@ -192,7 +169,7 @@ int enlist(TList *L, void *item) {
   return EOK;
 }
 
-void* delist(TList *L) {
+void* popList(TList *L) {
 
   void *item = L->last->item; 
   
@@ -203,18 +180,22 @@ void* delist(TList *L) {
   return item;
 }
 
+void freeList(TList *L) {
+  while(!isEmptyList(L)) popList(L);
+}
+
 //------------------------------------------------------------------- QUEUE
 
-INLINE void initQueue(TQueue *Q) {
+void initQueue(TQueue *Q) {
   Q->first = NULL;
   Q->last = NULL;
 }
 
-INLINE int isQueueEmpty(TQueue *Q) {
+int isEmptyQueue(TQueue *Q) {
   return (Q->first == NULL);
 }
 
-INLINE int enqueue(TQueue *Q, void *item) {
+int pushQueue(TQueue *Q, void *item) {
   
   TItem *qitem = malloc(sizeof(TItem));
   if (qitem == NULL) {
@@ -237,9 +218,9 @@ INLINE int enqueue(TQueue *Q, void *item) {
   return EOK;
 }
 
-INLINE void* dequeue(TQueue *Q) {
+void* popQueue(TQueue *Q) {
   
-  if (isQueueEmpty(Q)) {
+  if (isEmptyQueue(Q)) {
     return NULL;
   }
   
@@ -256,8 +237,8 @@ INLINE void* dequeue(TQueue *Q) {
   return item;
 }
 
-INLINE void freeQueue(TQueue *Q) {
-  while(!isQueueEmpty(Q)) dequeue(Q);
+void freeQueue(TQueue *Q) {
+  while(!isEmptyQueue(Q)) popQueue(Q);
 }
 
 //------------------------------------------------------------------- GRAPH
@@ -266,14 +247,15 @@ int initGraph(TGraph *graph, int n) {
 
   // init graph
   graph->n = n;
+  graph->m = 0;
+  graph->ntree = 0;
   graph->nodes = malloc(n * sizeof(TNode));
 
   if(graph->nodes == NULL) {
     return EALLOC;
   }
 
-  graph->ntree = 0;
-  graph->trees = NULL;
+  // init graph mutex
   pthread_mutex_init(&(graph->mutex), NULL); 
   
   // init nodes
@@ -289,10 +271,6 @@ int initGraph(TGraph *graph, int n) {
     
     pthread_mutex_init(&(node->mutex), NULL); 
   }
-  
-  // init globals
-  conflicts = 0;
-  pthread_mutex_init(&(confmutex), NULL);
   
   return EOK;
 }
@@ -311,28 +289,14 @@ void freeGraph(TGraph *graph) {
       edge = edge->next;
       free(old);
     }
+    
+    pthread_mutex_destroy(&(node->mutex));
   }
   
   // free nodes
   free(graph->nodes);
-  
-  // free trees
-  TTree *tree = graph->trees;
-  while(tree != NULL) {
-  
-    pthread_mutex_destroy(&(tree->mutex));
-    pthread_cond_destroy(&(tree->condition));
-    
-    TList *L = &(tree->nodes);
-    while(!isListEmpty(L)) {
-      delist(L);
-    }
-    
-    TTree *old = tree;
-    tree = tree->next;
-    free(old);
-  }
-  
+  // free mutex
+  pthread_mutex_destroy(&(graph->mutex));  
 }
 
 //-------------------------------------------------------------------
@@ -369,6 +333,9 @@ int addEdge(TGraph *graph, int idA, int idB) {
   edgeBA->reversed = edgeAB;
   edgeBA->next = B->edges;
   B->edges = edgeBA;
+  
+  // increment number of edges
+  graph->m++;
   
   return EOK;
 }
@@ -455,11 +422,52 @@ void printMatching(TGraph *graph, FILE *f) {
     fprintf(f, "\n\n");  
   }
   
-  msg("Number of trees: %d",0, graph->ntree);
-  msg("Number of conflicts: %d",0, conflicts);
-  
-  // print number of edges in matching
-  fprintf(f, "%d\n", M);  
+  fprintf(f, "<Nodes>\n%d\n\n", graph->n);
+  fprintf(f, "<Edges>\n%d\n\n", graph->m);
+  fprintf(f, "<Trees>\n%d\n\n", graph->ntree);
+  fprintf(f, "<M>\n%d\n", M);  
+}
+
+//------------------------------------------------------------------- SYNC
+
+void lockNode(TNode *node) {
+  pthread_mutex_lock(&(node->mutex));
+}
+
+void unlockNode(TNode *node) {
+  pthread_mutex_unlock(&(node->mutex));
+}
+
+void lockTree(TTree *tree) {
+  pthread_mutex_lock(&(tree->mutex));
+}
+
+void unlockTree(TTree *tree) {
+  pthread_mutex_unlock(&(tree->mutex));
+}
+
+void lockNodes(TNode *nodeA, TNode *nodeB) {
+
+  if (nodeA->id < nodeB->id) {
+    pthread_mutex_lock(&(nodeA->mutex));
+    pthread_mutex_lock(&(nodeB->mutex));
+  }
+  else {
+    pthread_mutex_lock(&(nodeB->mutex));
+    pthread_mutex_lock(&(nodeA->mutex));  
+  }
+}
+
+void lockTrees(TTree *treeA, TTree *treeB) {
+
+  if (treeA->id < treeB->id) {
+    pthread_mutex_lock(&(treeA->mutex));
+    pthread_mutex_lock(&(treeB->mutex));
+  }
+  else {
+    pthread_mutex_lock(&(treeB->mutex));
+    pthread_mutex_lock(&(treeA->mutex));  
+  }
 }
 
 //------------------------------------------------------------------- TREE
@@ -474,413 +482,196 @@ TTree *createTree(TGraph *graph) {
   
   // init tree
   tree->status = INPROCESS;
-  tree->count = 0;
   tree->root = NULL;
   tree->owner = 0;
-  tree->looser = 0;
-  tree->hadpath = 0;
+  tree->pathEnd = NULL;
   
   // init list of nodes
   initList(&(tree->nodes));
   
   // init mutex
   pthread_mutex_init(&(tree->mutex), NULL); 
-  pthread_mutex_init(&(tree->cmutex), NULL); 
-  pthread_cond_init(&(tree->condition), NULL);
 
   // critical section
   pthread_mutex_lock(&(graph->mutex));  
-  
-  tree->id = graph->ntree++;
-  tree->next = graph->trees;
-  graph->trees = tree;
-    
+  tree->id = graph->ntree++;    
   pthread_mutex_unlock(&(graph->mutex));  
   
   return tree;
 }
 
-//------------------------------------------------------------------- SYNC
+//-------------------------------------------------------------------
 
-INLINE void lockNode(TNode *node) {
-  pthread_mutex_lock(&(node->mutex));
-}
+void freeTree(TTree *tree) {
 
-INLINE void unlockNode(TNode *node) {
-  pthread_mutex_unlock(&(node->mutex));
-}
-
-
-INLINE void lockTree(TTree *tree) {
-  pthread_mutex_lock(&(tree->mutex));
-}
-
-INLINE void unlockTree(TTree *tree) {
-
-  pthread_mutex_lock(&(tree->cmutex));
-  pthread_mutex_unlock(&(tree->mutex));
-  pthread_cond_broadcast(&(tree->condition));
-  pthread_mutex_unlock(&(tree->cmutex));
-
-}
-
-INLINE int tryLockTree(TTree *tree) {
-
- pthread_mutex_lock(&(tree->cmutex));
- int ret = (pthread_mutex_trylock(&(tree->mutex)) == 0); 
- if (ret) pthread_mutex_unlock(&(tree->cmutex));
- 
- return ret;
-}
-
-INLINE void waitTree(TTree *tree) {
-
-  pthread_cond_wait(&(tree->condition), &(tree->cmutex));
-  pthread_mutex_unlock(&(tree->cmutex));
+  // free list of nodes
+  freeList(&(tree->nodes));
   
+  // free tree
+  pthread_mutex_destroy(&(tree->mutex));
+  free(tree);  
 }
 
-//------------------------------------------------------------------- LOCK TREE OR NODE
+//------------------------------------------------------------------- 
 
-// Returns tree if tree is locked, otherwise node is locked.
-INLINE TTree* lockTreeOrNode(TNode *node, int id) {
+void colourNodes(TTree *tree, int colour) {
+  DEBUG(msgt("Colour nodes.", tree))
 
-  DEBUG(msg("Lock tree or node %d", id, node->id))
-
-  TTree *tree = NULL;
+  TNode *node = NULL;
+  TList *L = &(tree->nodes);
   
-  // lock the node
-  lockNode(node);
+  while(!isEmptyList(L)) {
   
-  // lock the tree
-  while (node->tree != NULL) {
+    node = popList(L);  
+    lockNode(node);
 
-    tree = node->tree;
-    if (tryLockTree(tree)) {
-      break;
+    if (node->tree == tree) {
+      node->colour = colour;
+      node->tree = NULL;
+      node->entry = NULL;
     }
-    else {
-      unlockNode(node);
-      waitTree(tree);
-      lockNode(node);
-    }
-  }
-
-  // save the tree
-  tree = node->tree;
-  
-  // unlock the node if tree is not null
-  if (node->tree != NULL) {
+    
     unlockNode(node);
   }
-
-  //DEBUG(msg("End of lock tree or node.", id))
-  return tree;
 }
 
-//-------------------------------------------------------------------
+//------------------------------------------------------------------- MATCHING
 
-INLINE TTree* lockTreesOrNode(TTree *treeA, TNode *nodeB) {
+int inM(TNode *node) {
 
-  DEBUG(msgt("Lock trees or node %d", treeA, nodeB->id))
-
-  TTree *treeB, *treeX, *treeY;
-  int idA = treeA->id;
-  int idB = 0;
-    
-  // lock the node B
-  lockNode(nodeB);
-  treeB = NULL;
-
-  while (nodeB->tree != NULL) {
-  
-    treeB = nodeB->tree;
-    idB = treeB->id;
-    
-    if (idA == idB) {
-    
-      // try lock A
-      if (tryLockTree(treeA)) {
-        break;
-      }
-      else {
-        unlockNode(nodeB);
-        waitTree(treeA);
-        lockNode(nodeB);
-      }
-    }
-    
-    else { 
-    
-      // order by id
-      if (idA < idB) {
-        treeX = treeA;
-        treeY = treeB;
-      }
-      else {
-        treeX = treeB;
-        treeY = treeA;
-      }
-      
-      // lock X
-      if(tryLockTree(treeX)) {
-
-        // lock Y
-        if(tryLockTree(treeY)) {
-          break;
-        }
-        else {
-          unlockTree(treeX);
-          unlockNode(nodeB);
-          waitTree(treeY);
-          lockNode(nodeB);
-        }
-      } 
-      else {
-        unlockNode(nodeB);
-        waitTree(treeX);
-        lockNode(nodeB);
-      }
-    }
+  TEdge *edge = node->edges;     
+  while((edge != NULL) && !(edge->M)) {
+    edge = edge->next;
   }
   
-  treeB = nodeB->tree;
-  
-  // unlock node B
-  if(treeB != NULL) {
-    unlockNode(nodeB);
-  }
-
-  //DEBUG(msgt("End of lock trees or node.", treeA))
-  return treeB;
+  return (edge != NULL);
 }
 
-//-------------------------------------------------------------------
+//------------------------------------------------------------------- 
 
-// Returns OK, if free node is locked.
-INLINE int lockFreeNode(TNode *node, int id) {
-
-  int status = OK; 
-  TTree *tree = lockTreeOrNode(node, id);  
-  
-  if (tree != NULL) {
-  
-    // tree is locked
-    // lock free node
-    if (tree->status == FREE) {
-      lockNode(node);
-      status = OK;
-    }
-    else if (tree->status == INPROCESS) {
-      status = IGNORE;
-    }
-    else if (tree->status == APSTREE) {
-      status = IGNORE;
-    }
-    else { 
-      status = ABORT;
-    }
-    
-    // unlock tree
-    unlockTree(tree);   
-  }
-  else {
-    // node is locked
-    
-    // node was in APS tree
-    if (node->colour == GREEN) {
-      status = IGNORE;
-      unlockNode(node); 
-    }
-  }
-  
-  // free node is locked
-  return status;
-}
-
-//------------------------------------------------------------------- PROCESS PATH
-
-// SYNC: tree and both nodes have to be locked
-INLINE void changeM(TEdge *edge) {
+void changeM(TEdge *edge) {
 
   edge->M = !(edge->M);
   edge->reversed->M = !(edge->reversed->M);
-  
 }
 
-// SYNC: tree has to be locked
-INLINE void processPath(TTree *tree, TNode *end) {
+//-------------------------------------------------------------------
+
+void processPath(TNode *end) {
 
   TNode *u, *v;
   TEdge *uv, *vu;
     
   u = end;
-  lockNode(u);
-       
+
   while (u->entry != NULL) {
-   
+
     vu = u->entry;
     uv = vu->reversed;
     v  = uv->node;
     
-    lockNode(v);
     changeM(uv);
-    unlockNode(u);  
-    
     u = v;
-  }
-  unlockNode(u);
-  
-  tree->status = FREE;
-  tree->hadpath = 1;
-}
-
-//------------------------------------------------------------------- FREE NODES IN TREE
-
-void freeNodesInTree(TTree *tree) {
-
-  TNode *node = NULL;
-  TList *L = &(tree->nodes);
-  
-  while(!isListEmpty(L)) {
-    node = delist(L);
     
-    lockNode(node);
-    
-    if (node->tree == tree) {
-      node->tree = NULL;
-      node->colour = (tree->status == APSTREE) ? GREEN : WHITE;
-    }
-    
-    unlockNode(node);
   }
 }
 
 //------------------------------------------------------------------- ADD NODE TO TREE
 
-// SYNC: tree and node have to be locked
-INLINE void _addNodeToTree(TTree *tree, TNode *node, TEdge *edge, int colour) {
+void _addNodeToTree(TTree *tree, TNode *node, TEdge *edge, int colour) {
   
   node->tree = tree;
   node->entry = edge;
   node->colour = colour;
   
-  tree->count++;
-  enlist(&(tree->nodes), node);
+  pushList(&(tree->nodes), node);
 }
 
 //-------------------------------------------------------------------
 
-// add node B to the tree A via edge AB
+
 int addNodeToTree(TTree *treeA, TNode *nodeA, TNode *nodeB, TEdge *AB, int M) {
-  DEBUG(msgt("Add node B %d to node A %d.", treeA, nodeB->id, nodeA->id))
+
+  DEBUG(msgt("Try add node B %d to node A %d.", treeA, nodeB->id, nodeA->id))
 
   // init
   int status = OK;
-  int colour = M ? RED : BLUE;
+  int hasPath = 0;
+  int colour = M ? RED : BLUE;  
   
-  // lock trees A and B or lock only node B
-  TTree *treeB = lockTreesOrNode(treeA, nodeB);
+  TTree *treeB = NULL;
   
-  // node B does not have a tree
-  if (treeB == NULL) {
+  // lock nodes
+  lockNodes(nodeA, nodeB);
+    
+  // lock tree A and check if it has path
+  lockTree(treeA);
+  hasPath = (treeA->status == HASPATH);
+  unlockTree(treeA);
   
+  // has path
+  if(hasPath) {
+    DEBUG(msgt("PATH: Has path.", treeA))
+    status = PATH;
+  }
+  // same trees
+  else if (nodeA->tree == nodeB->tree) {
+    DEBUG(msgt("IGNORE: Same trees.", treeA))
+    status = IGNORE;
+  }
+  // check matching
+  else if (AB->M != M) {
+    DEBUG(msgt("IGNORE: Wrong type of edge.", treeA))
+    status = IGNORE;  
+  }
+  // APS tree
+  else if (nodeB->colour == GREEN) {
+    DEBUG(msgt("IGNORE: The node %d is in APS tree.", treeA, nodeB->id))
+    status = IGNORE;   
+  }
+  // FREE tree
+  else if (nodeB->colour == WHITE) {
+    DEBUG(msgt("OK: The node %d is free.", treeA, nodeB->id))
+    
     lockTree(treeA);
-
-    if (treeA->status != INPROCESS) {
-      DEBUG(msgt("ABORT: Tree A is not in process.", treeA))
-      status = ABORT;
-    }
-    
-    else if (AB->M != M) {
-      DEBUG(msgt("IGNORE: Wrong type of edge.", treeA))
-      status = IGNORE;
-    }
-
-    else if (nodeB->colour == GREEN) {
-      DEBUG(msgt("IGNORE: The node was in APS tree.", treeA))
-      status = IGNORE;
-    }
-    
-    else {
-      DEBUG(msgt("OK: The node %d is free.", treeA, nodeB->id))
-      _addNodeToTree(treeA, nodeB, AB, colour);
-      status = OK;   
-    }
-    
-    unlockNode(nodeB);
+    _addNodeToTree(treeA, nodeB, AB, colour);
     unlockTree(treeA);
+    
+    status = OK; 
+  }
+  // INPROCESS tree - found path
+  else if (nodeB->colour == nodeA->colour) {
+      
+    treeB = nodeB->tree;
+    lockTrees(treeA, treeB);
+    
+    if (treeA->status == INPROCESS && treeB->status == INPROCESS) {
+      DEBUG(msgt("PATH: Found path.", treeA))
+      
+      treeA->status = HASPATH;
+      treeA->pathEnd = nodeA;  
+      treeB->status = HASPATH;
+      treeB->pathEnd = nodeB;
+      changeM(AB);
+      status = PATH;
+    }
+    else {
+      DEBUG(msgt("IGNORE: Tree A is in conflict.", treeA))
+      status = CONFLICT;
+    }
+    
+    unlockTree(treeA);
+    unlockTree(treeB);
+  
+  }
+  // INPROCESS tree - conflict
+  else {
+    DEBUG(msgt("IGNORE: Tree A is in conflict.", treeA))
+    status = CONFLICT;      
   }
   
-  // node B has a tree, locked tree A and tree B    
-  else {  
-
-    lockNode(nodeB);
-    
-    if (treeA->status != INPROCESS) {
-      DEBUG(msgt("ABORT: Tree A not in process.", treeA))
-      status = ABORT;
-    }
-    
-    else if (treeA->id == treeB->id) {    
-      DEBUG(msgt("IGNORE: Trees A and B are same.", treeA))
-      status = IGNORE;
-    }
-    
-    else if (AB->M != M) {    
-      DEBUG(msgt("IGNORE: Wrong type of edge.", treeA))
-      status = IGNORE;
-    }
-    
-    else if (treeB->status == APSTREE) {
-      DEBUG(msgt("IGNORE: The node %d is in APS tree.", treeA, nodeB->id))
-      addConflict();
-      status = IGNORE;
-    }
-    
-    else if (treeB->status == FREE) {
-      DEBUG(msgt("OK: The node %d is in a free tree.", treeA, nodeB->id))
-      _addNodeToTree(treeA, nodeB, AB, colour);   
-      addConflict();   
-      status = OK;
-    }
-        
-    else if (treeB->status == INPROCESS) {
-      DEBUG(msgt("CONFLICT with nodes %d and %d.", treeA, nodeA->id, nodeB->id))
-
-      lockNode(nodeA);  
-            
-      if(nodeA->colour == nodeB->colour) {
-        DEBUG(msgt("PATH: Found path.", treeA))
-          
-        changeM(AB);
-        
-        unlockNode(nodeA);  
-        processPath(treeA, nodeA);
-          
-        unlockNode(nodeB);
-        processPath(treeB, nodeB);
-        lockNode(nodeB);
-                
-        status = PATH;
-      }   
-      else {
-        unlockNode(nodeA);
-          
-        DEBUG(msgt("IGNORE: Tree A becomes looser.", treeA))
-        treeA->looser = 1;
-        status = IGNORE;           
-      }
-    }
-    
-    unlockNode(nodeB);
-
-    if (treeA != treeB) {
-      unlockTree(treeA);
-    }
-    
-    unlockTree(treeB);
-  }
+  unlockNode(nodeA);
+  unlockNode(nodeB);
 
   DEBUG(msgt("End of add node to tree.", treeA))
   return status;
@@ -895,21 +686,23 @@ int _applyAPS(TTree *tree, TQueue *Q, int *ptrStatus) {
   int M = 0; 
   int error = EOK; 
   int status = OK;
+  int conflict = 0;
+  int colour = WHITE;
   
   TNode *x, *y, *z, *pathEnd = NULL;
   TEdge *xy, *yz;
 
   // insert root into Q
-  error = enqueue(Q, (void*) tree->root);
+  error = pushQueue(Q, (void*) tree->root);
   
   if (error != EOK)
     return error;
   
   // process the queue
-  while(!isQueueEmpty(Q) && status == OK && error == EOK) {
+  while(!isEmptyQueue(Q) && status == OK && error == EOK) {
 
     // get x
-    x = dequeue(Q);    
+    x = popQueue(Q);    
     xy = x->edges;
     
     while(xy != NULL && status == OK && error == EOK) {
@@ -917,16 +710,22 @@ int _applyAPS(TTree *tree, TQueue *Q, int *ptrStatus) {
       // get y
       y = xy->node;
       status = addNodeToTree(tree, x, y, xy, 0);
-
+      
       // try next edge
       if (status == IGNORE) {
         xy = xy->next;
         status = OK;
       }      
+      // node in conflict, try next edge xy
+      else if (status == CONFLICT) {
+        conflict = 1;
+        xy = xy->next;
+        status = OK;
+      }
       // new y
       else if (status == OK) {
-
         DEBUG(msgt("Added new y=%d.", tree, y->id));      
+        
         M = 0;      
         yz = y->edges;
       
@@ -941,11 +740,18 @@ int _applyAPS(TTree *tree, TQueue *Q, int *ptrStatus) {
             yz = yz->next;
             status = OK;
           }
+          // node in conflict, try next y
+          else if (status == CONFLICT) {
+            conflict = 1;
+            status = OK;
+            yz = NULL;
+            M++;
+          }
           // new z
           else if (status == OK) {
-      
             DEBUG(msgt("Added new z=%d.", tree, z->id));
-            error = enqueue(Q, (void*) z);
+            
+            error = pushQueue(Q, (void*) z);
             M++;
             break;
           }
@@ -954,8 +760,8 @@ int _applyAPS(TTree *tree, TQueue *Q, int *ptrStatus) {
         // found path from y
         if (status == OK && !M) {  
           DEBUG(msgt("Found path, y is not in M.", tree))
-          status = PATH;
           pathEnd = y;
+          status = PATH;
         }
       
         // try next edge xy
@@ -964,36 +770,43 @@ int _applyAPS(TTree *tree, TQueue *Q, int *ptrStatus) {
     }
   }
 
-  // lock the tree
+  // process results  
   lockTree(tree);
+  
+  if (status == PATH) {
+    DEBUG(msgt("Processing path.", tree))
+    
+    if (tree->status == HASPATH) {
+      pathEnd = tree->pathEnd;
+    }
 
-  if (tree->status == FREE && tree->hadpath) {
-    status = PATH;
+    tree->status = HASPATH;
+    unlockTree(tree);
+    
+    processPath(pathEnd);
+    colour = WHITE;
+    status = OK;
   }
+  else {
   
-  else if (tree->status == INPROCESS && error == OK) { 
-  
-    if (tree->looser && status == OK) {
+    if (conflict) {
+      DEBUG(msgt("Restart the nodes.", tree))
+      tree->status = FREE;
+      colour = WHITE;
       status = ABORT;
     }
-    
-    if (status == OK) {
-      DEBUG(msgt("Set the tree to APS.", tree))
-      tree->status = APSTREE;  
+    else {
+      DEBUG(msgt("Found APS tree.", tree))
+      tree->status = APSTREE;
+      colour = GREEN;
+      status = OK;
     }
-    else if(status == PATH) {
-      DEBUG(msgt("Process path from %d.", tree, pathEnd->id))
-      processPath(tree, pathEnd);
-      tree->status = FREE;            
-    }
-    else if(status == ABORT) {
-      DEBUG(msgt("Free the tree.", tree))
-      tree->status = FREE;
-    } 
-  }
    
-  // unlock the tree
-  unlockTree(tree);
+    unlockTree(tree);
+  }
+
+  // recolour nodes
+  colourNodes(tree, colour);
   
   // set status
   *ptrStatus = status;
@@ -1027,7 +840,7 @@ int _findMatching(TGraph *graph, TQueue *Q, TMutex *qmutex, int id) {
     pthread_mutex_lock(qmutex);
     
     // is queue empty?
-    if(isQueueEmpty(Q)) {
+    if(isEmptyQueue(Q)) {
       DEBUG(msg("Root node queue is empty.", id))
       pthread_mutex_unlock(qmutex);
       break;
@@ -1036,64 +849,66 @@ int _findMatching(TGraph *graph, TQueue *Q, TMutex *qmutex, int id) {
     else {
     
       // get root node
-      TNode *node = dequeue(Q);
+      TNode *node = popQueue(Q);
       
       // unlock the queue
       pthread_mutex_unlock(qmutex);
       
       // lock the node
-      status = lockFreeNode(node, id);
+      lockNode(node);
 
-      if (status == OK) {
-        
-        // does it belong to M?
-        TEdge *edge = node->edges;
-        
-        while((edge != NULL) && !(edge->M)) {
-          edge = edge->next;
-        }
-
-        // node is not in M
-        if (edge == NULL) {
+      if (node->colour == WHITE) {
+        if (!inM(node)) {
         
           // create tree
           TTree *tree = createTree(graph);
-          if (tree == NULL) return EALLOC;
+          if (tree == NULL) {
+            unlockNode(node);
+            return EALLOC;
+          }
           
           // lock the tree
           lockTree(tree);
       
           tree->root = node; 
           tree->owner = id;
-          tree->count++;
           
           _addNodeToTree(tree, node, NULL, RED);
-
-          // unlock the node
-          unlockNode(node);
           
           // unlock the tree     
           unlockTree(tree);
+          
+          // unlock the node
+          unlockNode(node);
       
           // find augmenting path
           error = applyAPS(tree, &status);      
           
-          // free nodes in tree      
-          freeNodesInTree(tree);
-
+          // free nodes in tree and tree     
+          freeTree(tree);     
         }
-        // node is in M
         else {
           DEBUG(msg("Root node %d in M.", id, node->id))
           unlockNode(node);        
           status = OK;
         }
       }
+      else if (node->colour == GREEN) {
+        DEBUG(msg("Root node %d in APS tree.", id, node->id))
+        unlockNode(node);
+        status = OK;
+      }
+      else {
+        DEBUG(msg("Root node %d is processed.", id, node->id))
+        unlockNode(node);
+        status = ABORT;
+      }
 
+      // return node to queue
       if (status == ABORT) {
         DEBUG(msg("Return node %d to root node queue.", id, node->id))
         pthread_mutex_lock(qmutex);
-        error = enqueue(Q, (void*) node);
+        error = pushQueue(Q, (void*) node);
         pthread_mutex_unlock(qmutex);    
       }
     }  
@@ -1149,7 +964,7 @@ int findMatching(TGraph *graph, int n) {
   pthread_mutex_init(&(qmutex), NULL);
   
   for (int i = 0; i < graph->n; i++) {
-    error = enqueue(&Q, (void*) &(graph->nodes[i]));
+    error = pushQueue(&Q, (void*) &(graph->nodes[i]));
     
     if (error != EOK) {
       freeQueue(&Q);
@@ -1185,11 +1000,8 @@ int findMatching(TGraph *graph, int n) {
   return EOK;
 }
 
-//------------------------------------------------------------------- MAIN
+//------------------------------------------------------------------- MAIN FUNCTION
 
-/**
- * Main function
- */
 int main (int argc, char *argv[])
 {
   int error = EOK;
