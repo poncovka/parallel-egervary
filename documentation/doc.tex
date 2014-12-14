@@ -16,6 +16,8 @@
 \usepackage{color}
 
 \newcommand{\url}[1]{\textit{#1}}
+\newtheorem{Věta}{Věta}
+\newtheorem{Definice}{Definice}
 \begin{document}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -62,6 +64,27 @@ Alena Chernikava (\texttt{xcerni07})
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Úvod}
 
+Spousta aplikačních úloh vyžadují nalezení maximálního párování v grafu. V roce 1931
+Egervary vyřešil ten problem pro případ weighted biparcitních grafů.
+
+\begin{Definice}
+\textit{Párování} $M$ v grafu $G$ je to taková množina hran, kde každé dvě hrany nemají žadný spolecný vrchol.
+\end{Definice}
+
+\begin{Definice}
+\textit{$M$-alternující cesta} $P$ v grafu $G$ s párováním $M$ je taková cesta, ve které hrany se stříidají. Pro každé dvě sousední hrany platí, že jedna z ních patří párování a druhá nepatří.
+\end{Definice}
+
+\begin{Definice}
+\textit{$M$-rozšiřující cesta} $P$ v grafu $G$ s párováním $M$ je takova M-alternujécí cesta, že ani její začátek ani její konec nepatří párování $M$.
+\end{Definice}
+
+Egervaryho algoritmus je zalozen na nasledujici větě.
+
+\begin{Definice}[Berge]
+Párování $M$ v grafu $G$ je maximální párování tehdy a jen tehdy, kdy $G$ neobsahuje $M$-rozšiřující cestu. 
+\end{Definice}
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Egerváryho algoritmus} \label{secEgervary}
 
@@ -86,6 +109,29 @@ Alena Chernikava (\texttt{xcerni07})
   \caption{M-pokrytý u-strom a M-alternující u-strom.}
   \label{imgTrees}
 \end{figure}
+
+Nechť $G(X,Y)$ je bipartitní graf. Pak aloritmus je následující
+
+\begin{enumerate}
+\item Vybrat počateční párování $M$ (může být i prázdná množina)
+\item Vybrat $M$-nepokrytý vrchol $v$.
+	\begin{enumerate}
+	\item Jestli se takový vrchol našel 
+		\begin{enumerate}
+		\item Vyhledat $M$-rozšiřující cestu z vrcholu $v$ (pomoci algoritmu Augmenting Path Search)
+			\begin{enumerate}
+			\item Jestli $M$-rozšiřující cesta $P$ byla nalezna, pak vyměnit párování $M$ za symetrický rozdil množin $M$ a $E(P)$.
+			\item Jestli $M$-rozšiřující cesta nebyla nalezena, ale byl nalezen strom $T$, pak vuměnit graf $G$ za jeho podgraf s množinou vrcholu $V$-$V(T)$.
+			\end{enumerate}
+		\item Pokračovat bodem 2.
+		\end{enumerate}
+	\item Jestli se takový vrchol nenasel, tak nalezene párování $M$ je maximalni párování.
+	\end{enumerate}
+\end{enumerate}
+
+\begin{Definice}
+\textit{APS-strom} (z angličtiny Augmenting Path Search) je $M$-pokrytý strom z vrcholu $u$, který nemůže dal růst.
+\end{Definice}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Sekvenční varianta algoritmu}
@@ -156,7 +202,7 @@ Dále je třeba uvažovat o způsobu, jakým se budou synchronizovat procesy. Je
 
 Naše výsledné řešení vyplynulo z několika dalších řešení, která jsme implementovaly a testovaly. 
 
-Konflikt typu R-B jsme původně řešily tak, že proces $1$ vyhrál uzel stromu procesu $2$, pokud jeho strom $T_1$ obsahoval více uzlů než strom $T_2$. Jinak proces $1$ prohrál a byl nucen uvolnit svůj strom. V obou případech došlo k zahození jednoho z konfliktních stromů. Vzhledem k tomu, že další dva typy konfliktů R-R a B-B výpočet urychlují, myslely jsme si, že zpomalení výpočtu konfliktem R-B se ve výsledku neprojeví. Ukázalo se, že to není pravda. K zahazování stromů docházelo neustále a počet vytvořených stromů rostl vzhledem k velikosti vstupního grafu polynomiálně. To značně zpomalovalo výpočet. Efektivnějším řešením konfliktu se ukázala být ignorace konfliktní hrany. Počet vytvořených stromů byl pak lineární a většina $M$-rozšiřujících cest byla nalezena R-R a B-B konflikty.
+Konflikt typu R-B jsme původně řešily tak, že proces $1$ vyhrál uzel stromu procesu $2$, pokud jeho strom $T_1$ obsahoval více uzlů než strom $T_2$. Jinak proces $1$ prohrál a byl nucen uvolnit svůj strom. V obou případech došlo k zahození jednoho z konfliktních stromů. Vzhledem k tomu, že další dva typy konfliktů R-R a B-B výpočet urychlují, myslely jsme si, že zpomalení výpočtu konfliktem R-B se ve výsledku neprojeví. Ukázalo se, že to není pravda. K zahazování stromů docházelo neustále a počet vytvořených stromů rostl vzhledem k velikosti vstupního grafu polynomiálně. To značně zpomalovalo výpočet. Efektivnějším řešením konfliktu se ukázala být ignorace konfliktní hrany. Počet vytvořených stromů byl pak lineární a většina $M$-rozšiřujících cest byla nalezena R-R a B-B konflikty. Takže ignorování tohoto konfliktu je potřeba odůvodnit dokladněji. Jestli přes ignorovanou hranu existuje rozšiřující cesta do uzlu $v$, pak tato cesta může být nalezená jak stromem $T_1$ tak i stromem $T_2$. Pro vysledek není podstatné, který strom tuto cestu nalezne. 
 
 Synchronizaci procesů jsme zkusily řešit zamykáním stromů. Algoritmus byl tedy velmi podobný sekvenčnímu řešení. Uzly se odkazovaly na stromy a stromy obsahovaly informaci o svém stavu. Rostoucí strom byl ve stavu \texttt{INPROCESS}. Vyvoření APS stromu bylo možné nastavením stavu na \texttt{APSTREE}. Uvolnění stromu proběhlo upravením stavu na \texttt{FREE}. Úprava stavu tak sice byla možná v konstatním čase, ale kdykoliv chtěl proces přidat ke svému stromu nový uzel, musel zamknout svůj strom i strom toho uzlu. Stromy se tak staly úzkým hrdlem programu. To se projevilo zejména tak, že s vyšším počtem dostupných procesorů se časová efektivita programu nezlepšovala.
 
@@ -214,7 +260,22 @@ Skript generuje bipartitní neorientované grafy $G=(X,Y,E)$ a ukladá je do sou
 
 Skript je umístěný ve složce \texttt{graph}. Příkazem \texttt{python2.7 generator.py} se podle parametrů nastavených ve scriptu vygeneruje soubor s náhodným grafem. Příkaz \texttt{python2.7 generator.py test} vygeneruje všechny testovací soubory pro naše experimenty. Knihovna \texttt{python-igraph} na školním serveru \texttt{merlin} není dostupná, proto v archivu odevzdáváme část testovacích souborů.
 
+Experimenty byly provedeny na sadě testovacích souborů s počtem vrcholů 100+100, 200+200, 500+500, 606+606, 909+909, 1074+1074, 1737+1737 pro procentuální vyjádření hran 37 a 66.
 
+Experimenty byly provedeny na 4-jadrovém jednoprocesorovém systému.
+Vysledky experimentů jsou zobrazeny na následujících grafech:
+
+S růstem počtu vlaken klesá čas zpracování grafu. Na začátku čas klesá velice výrazně, ale pak klesání se zastaví. Důvody k takovému chování jsou následující
+\begin{enumerate}
+\item čím počet vlaken je blizší k počtu vrcholu tím víc konfliktů vzníká a tím více času procesy budou blokovaní
+\item čím vic vlaken, tím rychleji dochazeji volné nepokryté vrcholy.
+\item při daném návrhu maximalní efektivní počet vlaken se rovná počtu vrcholů.
+\end{enumerate}
+
+Taky se objevilo, že čas násobné zpracování jednoho grafu parallelní verzi se stejným počtem vlaken může dávát rozdílné výsledky. A to je pusobeno tím, že počet vzníkajících konfliktů záleži na vzdálenosti kořenových uzlu vlaken.
+
+Cesty na zlepšování algoritmu:
+    Uzkým hrdlem v tomto navrhu jsou konflikty. Čím mín konfiktů, tím rychlejí se graf zpracováva. To znamená, že by mohlo dojit ke zrychlení, jestli by se vlakna pouštěly na co nejvíc vzdálené uzly od sebe.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Závěr}
