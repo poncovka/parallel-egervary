@@ -46,10 +46,13 @@ def generateGraph(n1, n2, p):
   fname = "{}_{}_{}_{}_{}".format(FILENAME, n1, n2, int(p*100), len(m))
   writeGraph(fname, g, m)
 
-def generateGraphForTest():
-  for p in [.66,.37]:
-    for n1 in [1737, 100, 200, 500, 606, 909, 1074]:
-        generateGraph(n1, n1, p)
+def generateTestFiles():
+  global FILENAME
+  FILENAME = "../test/files/graph_"
+  
+  for p in (0.1,0.25,0.75,.99):
+    for n in (10,100,500,1000, 2000, 3000):
+        generateGraph(n, n, p)
 
 
 def generateRandomGraph():
@@ -60,10 +63,13 @@ def generateRandomGraph():
   generateGraph(n1, n2, p)
   
 if __name__ == "__main__":
+
   if len(sys.argv) == 1:
     generateRandomGraph()
+    
   else:
       if sys.argv[1] == 'test':  
-        generateGraphForTest()
+        generateTestFiles()
       else:
         print "Wrong argument" 
+        
