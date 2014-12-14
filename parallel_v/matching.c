@@ -686,7 +686,6 @@ int _applyAPS(TTree *tree, TQueue *Q, int *ptrStatus) {
   int M = 0; 
   int error = EOK; 
   int status = OK;
-  int conflict = 0;
   int colour = WHITE;
   
   TNode *x, *y, *z, *pathEnd = NULL;
@@ -712,16 +711,10 @@ int _applyAPS(TTree *tree, TQueue *Q, int *ptrStatus) {
       status = addNodeToTree(tree, x, y, xy, 0);
       
       // try next edge
-      if (status == IGNORE) {
+      if (status == IGNORE || status == CONFLICT) {
         xy = xy->next;
         status = OK;
       }      
-      // node in conflict, try next edge xy
-      else if (status == CONFLICT) {
-        conflict = 1;
-        xy = xy->next;
-        status = OK;
-      }
       // new y
       else if (status == OK) {
         DEBUG(msgt("Added new y=%d.", tree, y->id));      
@@ -742,7 +735,6 @@ int _applyAPS(TTree *tree, TQueue *Q, int *ptrStatus) {
           }
           // node in conflict, try next y
           else if (status == CONFLICT) {
-            conflict = 1;
             status = OK;
             yz = NULL;
             M++;
@@ -788,20 +780,12 @@ int _applyAPS(TTree *tree, TQueue *Q, int *ptrStatus) {
     status = OK;
   }
   else {
-  
-    if (conflict) {
-      DEBUG(msgt("Restart the nodes.", tree))
-      tree->status = FREE;
-      colour = WHITE;
-      status = ABORT;
-    }
-    else {
-      DEBUG(msgt("Found APS tree.", tree))
-      tree->status = APSTREE;
-      colour = GREEN;
-      status = OK;
-    }
-   
+    
+    DEBUG(msgt("Found APS tree.", tree))
+    tree->status = APSTREE;
+    colour = GREEN;
+    status = OK;
+       
     unlockTree(tree);
   }
 
