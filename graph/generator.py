@@ -51,7 +51,7 @@ def generateTestFiles():
   FILENAME = "../test/files/graph_"
   
   for p in (0.1,0.25,0.75,.99):
-    for n in (10,100,500,1000, 2000, 3000):
+    for n in (10,100,500,1000):
         generateGraph(n, n, p)
 
 

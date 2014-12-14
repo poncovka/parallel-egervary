@@ -74,7 +74,7 @@ Egerváryho algoritmus a uvedené definice jsme převzaly z knihy Graph Theory \
 \subsection{Maximální párování}
 
 \begin{Definice}
-\textit{Párování} $M$ v grafu $G$ je to taková množina hran, kde každé dvě hrany nemají žádný společný vrchol.
+\textit{Párování} $M$ v grafu $G=(V,E)$ je podmnožina množiny hran E taková, že žádné dvě hrany nemají společný vrchol. Párování M je maximální, pokud neexistuje párování s větším počtem hran.
 \end{Definice}
 
 \begin{figure}[ht]
@@ -86,11 +86,11 @@ Egerváryho algoritmus a uvedené definice jsme převzaly z knihy Graph Theory \
 
 
 \begin{Definice}
-\textit{$M$-alternující cesta} $P$ v grafu $G$ s párováním $M$ je taková cesta, ve které hrany se střídají. Pro každé dvě sousední hrany platí, že jedna z nich patří párování a druhá nepatří.
+\textit{$M$-alternující cesta} $P$ v grafu $G$ s párováním $M$ je taková cesta, na které jsou hrany střídavě v $M$ a v $E-M$. Tedy pro každé dvě sousední hrany platí, že jedna z nich patří do $M$ a druhá nepatří.
 \end{Definice}
 
 \begin{Definice}
-\textit{$M$-rozšiřující cesta} $P$ v grafu $G$ s párováním $M$ je M-alternující cesta, kde počáteční ani koncový uzel cesty nepatří do párování $M$.
+\textit{$M$-rozšiřující cesta} $P$ v grafu $G$ s párováním $M$ je M-alternující cesta, kde počáteční ani koncový uzel cesty nepatří do párování $M$. Cesta se nazývá rozšířující, neboť změnou párování na hranách cesty se velikost množiny $M$ zvětší o jedna.
 \end{Definice}
 
 \begin{figure}[ht]
@@ -100,22 +100,20 @@ Egerváryho algoritmus a uvedené definice jsme převzaly z knihy Graph Theory \
   \label{imgPath}
 \end{figure}
 
-Egerváryho algoritmus je založen na následující větě.
-
-\begin{Veta}[Berge]
-Párování $M$ v grafu $G$ je maximální párování tehdy a jen tehdy, kdy $G$ neobsahuje $M$-rozšiřující cestu. 
+\begin{Veta}[Berge] \label{Berge}
+Párování $M$ v grafu $G$ je maximální párování tehdy a jen tehdy, když $G$ neobsahuje $M$-rozšiřující cestu. 
 \end{Veta}
 
 \begin{Definice}
-Nech't $G$ je graf a $M$ nějaké párování v něj. Necht' $u$ je vrchol grafu $G$ nepokrytý párováním $M$. Tehdy \textit{$M$-alternující $u$-strom} je to strom $T$ s kořenem ve vrcholu $u$ v grafu $G$ takový, že pro libovolný uzel $v\in V(G)$ cesta $uTv$ je alternující cesta. 
+Nechť $G$ je graf, $M$ je párování v $G$ a $u$ je vrchol z $G$ nepokrytý párováním $M$. Pak strom $T$ s kořenem ve vrcholu $u$ v grafu $G$ je \textit{$M$-alternující $u$-strom}, pokud pro každý uzel $v$ stromu $T$ je $uTv$ $M$-alternující cesta.
 \end{Definice}
 
 \begin{Definice}
-$M$-alternující $u$-strom je \textit{$M$-pokrytý $u$-strom} jestli párování $M \cap E(T)$  pokrývá všechny vrcholy stromu $T$ kromě vrcholu $u$.
+Strom T grafu G je \textit{$M$-pokrytý $u$-strom}, jestliže párování $M \cap E_T$, kde $E_T$ je množina všech hran stromu $T$, pokrývá všechny vrcholy stromu $T$ kromě vrcholu $u$.
 \end{Definice}
 
 \begin{Definice}
-\textit{APS-strom} (z angličtiny Augmenting Path Search) je $M$-pokrytý $u$-strom, který nemůže dál růst.
+\textit{APS-strom} (z angličtiny Augmenting Path Search) je maximální $M$-pokrytý $u$-strom. Tedy strom, který nemůže dál růst.
 \end{Definice}
 
 \begin{figure}[ht]
@@ -128,52 +126,12 @@ $M$-alternující $u$-strom je \textit{$M$-pokrytý $u$-strom} jestli párován�
 
 \subsection{Popis Egervarýho algoritmu}
 
-INPUT:Nechť $G(X,Y)$ je bipartitní graf. \\
-OUTPUT: maximální párování.\\
-\begin{enumerate}
-\item Vybrat počáteční párování $M$ (může být i prázdná množina)
-\item Vybrat $M$-nepokrytý vrchol $v$.
-	\begin{enumerate}
-	\item Jestli se takový vrchol našel 
-		\begin{enumerate}
-		\item Vyhledat $M$-rozšiřující cestu z vrcholu $v$ (pomoci algoritmu Augmenting Path Search)
-			\begin{enumerate}
-			\item Jestli $M$-rozšiřující cesta $P$ byla nalezna, pak vyměnit párování $M$ za symetrický rozdíl množin $M$ a $E(P)$.
-			\item Jestli $M$-rozšiřující cesta nebyla nalezena, ale byl nalezen strom $T$, pak vyměnit graf $G$ za jeho podgraf s množinou vrcholu $V$-$V(T)$.
-			\end{enumerate}
-		\item Pokračovat bodem 2.
-		\end{enumerate}
-	\item Jestli se takový vrchol nenasel, tak nalezené párování $M$ je maximální párování.
-	\end{enumerate}
-\end{enumerate}
-
-\subsection{Algoritm Augmenting Path Search}
-INPUT: graf $G$, párování $M$, nepotrytý vrchol $u$.\\
-OUTPUT:APS-trom $T$ anebo párování $M$ zvětšené o jednu hranu. \\
-\begin{enumerate}
-\item $V(T)={u}$, $E(T)=\emptyset$,$R(T)={u}$
-\item While $\exists xy$ , že $x \in R(T)$ a $y \notin V(T)$.
-	\begin{enumerate}
-	\item $V(T) = V(T)\cup {u}$
-	\item $E(T) = E(T)\cup {xy}$
-	\item Jestli ${y}$ pokryt párováním $M$
-		\begin{enumerate}
-		\item $M=M\div E(P)$, kde $P=uTy$
-		\item Vratit $M$
-		\end{enumerate}
-	\item Jestli ${y}$ nepokryt párováním $M$
-		\begin{enumerate}
-		\item Tehdy pro každé $z$, takové že $yz \in M$
-		\item $V(T) = V(T)\cup {z}$
-		\item $E(T) = E(T)\cup {yz}$
-		\item $R(T) = R(T)\cup{z}$
-		\end{enumerate}
-	\end{enumerate}
-\item return $T=(V(T),E(T))$
-\end{enumerate}
+Egerváryho algoritmus je založený na větě \ref{Berge}. Vstupem algoritmu je bipartitní graf $G=(X,Y,E)$, výstupem je maximální párování $M$ v $G$. Algoritmus vybere z grafu $G$ vrchol $u$ nepokrytý $M$ a zavolá na něj funkci APS (Augmenting Path Search). Funkce APS vytvoří strom $T$ s kořenový uzlem $u$ a obarví $u$ na červeno. Pokud existuje hrana z nějakého červeného uzlu $x$ stromu $T$ do uzlu $y$, který nepatří do $T$ a není pokrytý párováním $M$, lze přidat uzel $y$ do stromu $T$ a obarvit jej na modro. Pokud existuje hrana z nějakého modrého uzlu $y$ do uzlu $z$, který nepatří do $T$, ale je pokrytý párováním $M$, pak lze přidat uzel $z$ do stromu $T$ a obarvit jej na červeno. Pokud nějaký modrý uzel $y$ z $T$ není incidentní s hranou z $M$, existuje $M$-rozšiřující cesta z kořene stromu $u$ do vrcholu $y$. Pokud nelze ke stromu $T$ přidat žádnou hranu, strom $T$ je APS strom. Funkce APS tedy vrátí $M$-rozšiřující cestu, nebo APS strom. Pokud vrátí cestu, upraví se na ní párování $M$ tak, že hrany, které patřily do $M$, z $M$ odebereme, a hrany, které nepatřily do $M$, do $M$ přidáme. Pokud se vrátí APS strom, pokračuje se s grafem $G-T$.  
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Sekvenční varianta algoritmu} \label{secSeq}
+
+V této kapitole popisujeme návrh a implementaci sekvenční varianty Egerváryho algoritmu.
 
 \subsection{Návrh řešení}
 
@@ -206,6 +164,8 @@ Naše implementace se nachází ve složce \texttt{sequence} v souboru \texttt{m
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Paralelní varianta algoritmu} \label{secParallel}
+
+V této kapitole popisujeme analýzu, návrh a řešení paralelní varianty Egerváryho algoritmu. Neboť jsme nenašly vhodný zdroj, podle které bychom mohly paralelní variantu navrhnout a implementovat, věnujeme se velmi podrobně analýze problému paralelizace. 
 
 \subsection{Analýza problému}
 
@@ -292,14 +252,27 @@ Výsledný program \texttt{matching.c} je umístěný v adresáři \texttt{paral
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Experimenty} \label{secExperiment}
 
+V této kapitole popisujeme, jaké experimenty jsme s implementovanými algoritmy provedly a jaké výsledky jsme dostaly.
+
 \subsection{Generování vstupních souborů} \label{secGenerating}
 
 Pro vygenerování vstupních souborů jsme v jazyce \texttt{python 2.7} s použitím knihovny \texttt{python-igraph 0.7} \cite{igraph:2003} napsaly skript \texttt{generator.py}. 
 Skript generuje bipartitní neorientované grafy $G=(X,Y,E)$ a ukládá je do souborů \texttt{graph\_x\_y\_p\_m}, kde $x$ je počet uzlů v množině $X$, $y$ je počet uzlů v množině $Y$, $p$ je procentuální vyjádření počtu hran množiny $E$ a $m$ je počet hran v maximálním párování. Pak soubor obsahuje počet uzlů množiny $X \cup Y$, počet hran množiny $E$ a výčet všech dvojic uzlů, mezi kterými existuje v $E$ hrana, přičemž každá hrana je reprezentovaná právě jednou.
 
-Skript je umístěný ve složce \texttt{graph}. Příkazem \texttt{python2.7 generator.py} se podle parametrů nastavených ve scriptu vygeneruje soubor s náhodným grafem. Příkaz \texttt{python2.7 generator.py test} vygeneruje všechny testovací soubory pro naše experimenty. Knihovna \texttt{python-igraph} na školním serveru \texttt{merlin} není dostupná, proto v archivu odevzdáváme část testovacích souborů.
+Skript je umístěný ve složce \texttt{graph}. Příkazem \texttt{python2.7 generator.py} se podle parametrů nastavených ve scriptu vygeneruje soubor s náhodným grafem. Příkaz \texttt{python2.7 generator.py test} vygeneruje všechny testovací soubory pro naše experimenty a uloží je do složky \texttt{test/files}. Knihovna \texttt{python-igraph} na školním serveru \texttt{merlin} není dostupná, proto v archivu odevzdáváme část testovacích souborů.
 
-\subsection{Experimenty}
+Testovací soubory jsme vygenerovaly pro grafy $G=(X,Y,E)$, kde $|X|=|Y|$, s velikostmi množiny $X$ 10, 100, 500, 1000 a hustotami hran v $E$ 0.1, 0.25, 0.75, 0.99. Snažily jsme se tak pokrýt různé velikosti grafů, řídké i husté.
+
+\subsection{Spuštění testů}
+
+Testy se spouští příkazem \texttt{./test.sh} ve složce \texttt{test}. Skript přeloží programy, načte testovací soubory ze složky \texttt{test/files} a pro každý soubor zavolá paralelní a sekvenční program pro různé počty vláken a dostupných procesorů. Výsledky se ukládají do souboru \texttt{results.out}.
+
+\subsection{Vyhodnocení testů}
+
+Experimenty jsme provedly na školním serveru \texttt{merlin} pro maximální počet procesorů 12 a maximální počet vláken 15. Větší počet vláken nám server pro některé grafy nedovolil vytvořit.
+
+
+%%%% 
 
 Experimenty byly provedeny na sadě testovacích souborů rozdělených do třech skupin: zřídké, střední, husté. 
 Nasledující zíávislosti jsou zobrazeny na grafech: závislot času na počtu vrcholů, závislot času počtu procesorů, závislost času na počtu vlaken, závislost času na hustotě grafu.
@@ -323,6 +296,7 @@ Cesty na zlepšování algoritmu:
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Závěr}
+
 
 %------------------------------------------------------------------------
 \begin{thebibliography}{1}
