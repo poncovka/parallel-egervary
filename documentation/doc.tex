@@ -16,7 +16,7 @@
 \usepackage{color}
 
 \newcommand{\url}[1]{\textit{#1}}
-\newtheorem{Věta}{Věta}
+\newtheorem{Veta}{Věta}
 \newtheorem{Definice}{Definice}
 \begin{document}
 
@@ -102,17 +102,16 @@ Egerváryho algoritmus a uvedené definice jsme převzaly z knihy Graph Theory \
 
 Egerváryho algoritmus je založen na následující větě.
 
-\begin{Definice}[Berge]
+\begin{Veta}[Berge]
 Párování $M$ v grafu $G$ je maximální párování tehdy a jen tehdy, kdy $G$ neobsahuje $M$-rozšiřující cestu. 
+\end{Veta}
+
+\begin{Definice}
+Nech't $G$ je graf a $M$ nějaké párování v něj. Necht' $u$ je vrchol grafu $G$ nepokrytý párováním $M$. Tehdy \textit{$M$-alternující $u$-strom} je to strom $T$ s kořenem ve vrcholu $u$ v grafu $G$ takový, že pro libovolný uzel $v\in V(G)$ cesta $uTv$ je alternující cesta. 
 \end{Definice}
 
 \begin{Definice}
-\textit{$M$-pokrytý $u$-strom} DOPSAT
-\end{Definice}
-
-
-\begin{Definice}
-\textit{$M$-alternující $u$-strom} DOPSAT
+$M$-alternující $u$-strom je \textit{$M$-pokrytý $u$-strom} jestli párování $M \cap E(T)$  pokrývá všechny vrcholy stromu $T$ kromě vrcholu $u$.
 \end{Definice}
 
 \begin{Definice}
@@ -127,10 +126,10 @@ Párování $M$ v grafu $G$ je maximální párování tehdy a jen tehdy, kdy $G
 \end{figure}
 
 
-\subsection{Popis algoritmu}
+\subsection{Popis Egervarýho algoritmu}
 
-Nechť $G(X,Y)$ je bipartitní graf. Pak algoritmus je následující
-
+INPUT:Nechť $G(X,Y)$ je bipartitní graf. \\
+OUTPUT: maximální párování.\\
 \begin{enumerate}
 \item Vybrat počáteční párování $M$ (může být i prázdná množina)
 \item Vybrat $M$-nepokrytý vrchol $v$.
@@ -148,8 +147,30 @@ Nechť $G(X,Y)$ je bipartitní graf. Pak algoritmus je následující
 	\end{enumerate}
 \end{enumerate}
 
-
-DOPSAT POPIS AUGEMNTINT PATH SEARCH
+\subsection{Algoritm Augmenting Path Search}
+INPUT: graf $G$, párování $M$, nepotrytý vrchol $u$.\\
+OUTPUT:APS-trom $T$ anebo párování $M$ zvětšené o jednu hranu. \\
+\begin{enumerate}
+\item $V(T)={u}$, $E(T)=\emptyset$,$R(T)={u}$
+\item While $\exists xy$ , že $x \in R(T)$ a $y \notin V(T)$.
+	\begin{enumerate}
+	\item $V(T) = V(T)\cup {u}$
+	\item $E(T) = E(T)\cup {xy}$
+	\item Jestli ${y}$ pokryt párováním $M$
+		\begin{enumerate}
+		\item $M=M\div E(P)$, kde $P=uTy$
+		\item Vratit $M$
+		\end{enumerate}
+	\item Jestli ${y}$ nepokryt párováním $M$
+		\begin{enumerate}
+		\item Tehdy pro každé $z$, takové že $yz \in M$
+		\item $V(T) = V(T)\cup {z}$
+		\item $E(T) = E(T)\cup {yz}$
+		\item $R(T) = R(T)\cup{z}$
+		\end{enumerate}
+	\end{enumerate}
+\item return $T=(V(T),E(T))$
+\end{enumerate}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Sekvenční varianta algoritmu} \label{secSeq}
@@ -280,7 +301,10 @@ Skript je umístěný ve složce \texttt{graph}. Příkazem \texttt{python2.7 ge
 
 \subsection{Experimenty}
 
-Experimenty byly provedeny na sadě testovacích souborů s počtem vrcholů 100+100, 200+200, 500+500, 606+606, 909+909, 1074+1074, 1737+1737 pro procentuální vyjádření hran 37 a 66.
+Experimenty byly provedeny na sadě testovacích souborů rozdělených do třech skupin: zřídké, střední, husté. 
+Nasledující zíávislosti jsou zobrazeny na grafech: závislot času na počtu vrcholů, závislot času počtu procesorů, závislost času na počtu vlaken, závislost času na hustotě grafu.
+
+
 
 Experimenty byly provedeny na 4-jádrovém jednoprocesorovém systému.
 Výsledky experimentů jsou zobrazeny na následujících grafech:
@@ -290,7 +314,7 @@ S růstem počtu vláken klesá čas zpracování grafu. Na začátku čas kles�
 \item čím počet vláken je bližší k počtu vrcholu tím víc konfliktů vzniká a tím více času procesy budou blokovaní
 \item čím víc vláken, tím rychleji docházejí volné nepokryté vrcholy.
 \item při daném návrhu maximální efektivní počet vláken se rovná počtu vrcholů.
-\end{enumerate}
+"\end{enumerate}
 
 Taky se objevilo, že čas násobné zpracování jednoho grafu paralelní verzi se stejným počtem vláken může dávat rozdílné výsledky. A to je způsobeno tím, že počet vznikajících konfliktů záleží na vzdálenosti kořenových uzlu vláken.
 
