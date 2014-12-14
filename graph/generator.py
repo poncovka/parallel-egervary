@@ -48,7 +48,7 @@ def generateGraph(n1, n2, p):
 
 def generateTestFiles():
   global FILENAME
-  FILENAME = "../test/files/graph_"
+  FILENAME = "../test/files/graph"
   
   for p in (0.1,0.25,0.75,.99):
     for n in (10,100,500,1000):
