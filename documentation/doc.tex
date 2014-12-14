@@ -63,7 +63,7 @@ Alena Chernikava (\texttt{xcerni07})
 \section{Úvod}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Egerváryho algoritmus}
+\section{Egerváryho algoritmus} \label{secEgervary}
 
 
 \begin{figure}[ht]
@@ -90,7 +90,15 @@ Alena Chernikava (\texttt{xcerni07})
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Sekvenční varianta algoritmu}
 
-\subsection{Datové typy a struktury}
+\subsection{Návrh řešení}
+
+Vzhledem k tomu, že algoritmus sekvenční varianty je popsán v kapitole \ref{secEgervary}, zbývá vhodně navrhnout datové struktury. 
+
+Algoritmus s grafem pracuje tak, že přechází z uzlu na sousední uzly. Navíc, o hustotě vstupních grafů nic nevíme, proto je vhodnou reprezentací seznam sousedů. Potřebujeme reprezentovat bipartitní neorientovaný graf. Každý hrana tedy bude zastoupena dvakrát, jednou v každém směru. Vhledem k tomu, že atributem hrany je v našem případě příslušnost do párování M, je třeba nějak sdružit odpovídající si hrany. To je možné například tak, že každá hrana bude obsahovat ukazatel na hranu opačnou. Pokud se pak v jedné hraně změní příslušnost do M, lze okamžitě upravit příslušnost opačné hrany.
+
+Uzly se po jednom připojují ke stromu, dokud se nenalezne $M$-rozšiřující cesta, nebo APS tree. Pokud se nalezne cesta, je nutné projít stromem po této cestě a upravit na jejích hranách párování. Proto je výhodné si u každého uzlu pamatovat hranu z jeho předchůdce. Cestu pak lze projít od listového uzlu ke kořeni v lineárním čase k výšce stromu. 
+
+Pokud je nalezen APS tree, je třeba uzly stromu nějak vyloučit z grafu. Stejně tak, po zpracování cesty je třeba uzly stromu uvolnit pro další stromy (říkáme, že strom je zahozen). Pokud bychom uzly zpracovávaly po jednom, bude časová složitost každé takové úpravy stromu linerání vůči počtu uzlů ve stromu. Nabízí se vytvořit datovou strukturu stromu, která bude obsahovat položku se statusem stromu. Uzly stromu se pak budou odkazovat na tuto strukturu. Pokud bude status stromu \texttt{FREE}, pak jsou uzly bílé a dostupné pro nový strom. Pokud je status \texttt{ACTUAL}, uzly jsou modré nebo červené a jsou součástí právě zpracovávaného stromu. Jestliže je status \texttt{APSTREE}, pak jsou uzly zelené a algoritmus je ignoruje. Změna statusu je pak možná v konstatním čase. Příklad takové datové struktury je na obrázku \ref{imgStructure}.
 
 \begin{figure}[ht]
   \centering
@@ -101,8 +109,15 @@ Alena Chernikava (\texttt{xcerni07})
 
 \subsection{Popis implementace}
 
+Algoritmus jsme implementovaly v jazyce \texttt{C}.
+
+Datová struktura \texttt{TGraph} reprezentuje bipartitní neorientovaný graf. Obsahuje počet uzlů \texttt{n}, počet hran \texttt{m}, pole uzlů \texttt{nodes} a seznam stromů \texttt{trees}. Uzly jsou reprezentované strukturou \texttt{TNode} s položkami: pořadové číslo uzlu \texttt{id}, seznam hran \texttt{edges}, ukazatel na vstupní hranu \texttt{entry} a ukazatel na strom \texttt{tree}. Pokud uzel patří nějakému stromu, jeho ukazatel na vstupní hranu je nastavený na hranu z předchůdce uzlu do tohoto uzlu. Hranu reprezentuje struktura \texttt{TEdge}: \texttt{M} značí, zda hrana patří do dosud nalezeného párování grafu, \texttt{node} je ukazatel na uzel, do kterého hrana vstupuje, a \texttt{reversed} je ukazatel na hranu, která je k hraně opačná. Struktura \texttt{TQueue} spolu s \texttt{TItem} reprezentují abstraktní datový typ fronta.
+
+Graf lze inicializovat, vytvořit a zrušit funkcemi \texttt{initGraph}, \texttt{loadGraph} a \texttt{freeGraph}. Strom lze vytvořit zavoláním funkce \texttt{createTree}. Funkce \texttt{processPath} projde strom od listového uzlu ke kořenovému a upraví na cestě párování. Funkce \texttt{applyAPS} se snaží nalézt $M$-rozšiřující cestu. Pokud ji nalezne, zavolá pro ni funkci \texttt{processPath} a nastaví status stromu na \texttt{FREE}, jinak nastaví status stromu na \texttt{APSTREE}. Funkce \texttt{findMatching} prochází pole uzlů \texttt{nodes} grafu \texttt{graph} a pokud některá jeho vstupní hrana není v dosud nalezeném párování, vytvoří se strom s nalezeným uzlem jako kořenem a zavolá se funkce \texttt{applyAPS}. Funkce \texttt{main} zkontroluje vstupní paramentry, ze vstupního souboru vytvoří graf a zavolá pro něj funkci \texttt{findMatching}.
 
 \subsection{Spuštění aplikace}
+
+Naše implementace se nachází ve složce \texttt{sequence} v souboru \texttt{matching.c}. Program lze přeložit příkazem \texttt{make} a spustit příkazem \texttt{./matching file}, kde \texttt{file} je název vstupního souboru ve formátu popsaném v kapitole \ref{secGenerating}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Paralelní varianta algoritmu}
@@ -147,7 +162,7 @@ Synchronizaci procesů jsme zkusily řešit zamykáním stromů. Algoritmus byl 
 
 Řešením tohoto problému byla propagace stavu stromu ze stromu do uzlů. Stav stromu pak bylo možné vyčíst z barvy jeho uzlu. Bílý uzel nepatřil žádnému stromu, zelený uzel patřil APS stromu, modrý a červený uzel patřil zpracovávenému stromu. Toto řešení je výhodné v tom, že pokud chce proces přidat ke svému stromu nový uzel, vyčte z barvy tohoto uzlu, jestli má komunikovat i s jeho stromem, nebo ne. Nevýhodou je časová složitost přebarvení všech uzlů stromu. Důležité však je, že se takto zjednodušila synchronizace, což umožnilo více využívat dostupné procesory.
 
-\subsection{Popis řešení}
+\subsection{Návrh řešení}
 
 Na začátku jsou všechny uzly obarveny na bílo a vloženy do fronty kořenových uzlů. Pokud je kořenová fronta prázdná, proces $i$ se ukončí, jinak z fronty vyzvedne uzel $u$. Pokud je uzel $u$ bilý, proces jej přidá do svého stromu $T_i$ jako kořen a obarví jej na červeno. Proces $i$ začne hledat $M$-rozšiřující cestu. Postupně připojuje k uzlům $v_i$ uzly $v_j$. 
 
@@ -171,16 +186,28 @@ V případě R-B konfliktu proces uzel ignoruje (viz. obrázek \ref{imgConflict}
 
 Pokud proces $i$ nalezne cestu, nastaví stav stromu $T_i$ na \texttt{HASPATH}. Pokud proces $i$ zjistí, že jeho strom je ve stavu \texttt{HASPATH}, pak upraví párování na nalezené cestě, změní jeho stav na \texttt{FREE} a obarví všechny jeho uzly na bílo. Pokud proces $i$ skončí hledání $M$-rozšiřující cesty nalezením APS stromu a strom $T_i$ nevyvolal žádné R-B konflikty, pak proces nastaví stav stromu na \texttt{APSTREE} a obarví všechny jeho uzly na zeleno. Jestliže strom $T_i$ nějaký R-B konflikt vyvolal, pak proces nastaví jeho stav na \texttt{FREE} a obarví všechny jeho uzly na bílo. Nakonec si proces $i$ vyvedne z fronty kořenových uzlů nový uzel a celý proces se opakuje.
 
-\subsection{Datové typy a struktury}
-
 \subsection{Popis implementace}
 
+Algoritmus jsme implementovaly v jazyce \texttt{C} s využitím knihovny \texttt{pthread}. 
+
+Datové struktury \texttt{TList} a \texttt{TQueue} reprezentují abstraktní datové typy seznam a fronta nad prvky typu ukazatel na \texttt{void}. \texttt{TGraph}, \texttt{TTree}, \texttt{TNode} a \texttt{TEdge} jsou v podstatě stejné jako u sekvenční varianty. Liší se zejména přítomností mutexů, které zajišťují exkluzivní přístup ke strukturám (z výjimkou \texttt{TEdge}). \texttt{TTree} si navíc uchovává pořadové číslo stromu \texttt{id}, pořadové číslo \texttt{owner} procesu, který ho vlastní, ukazatel \texttt{pathEnd} na konec cesty a seznam uzlů \texttt{nodes}, které jsou ve stromu. Vlákno je reprezentováno datovým typem \texttt{TThread}, mutex typem \texttt{TMutex}. Datová struktura \texttt{TThreadData} zapouzdřuje vstupní data procesů.
+
+Graf lze inicializovat, vytvořit a zrušit funkcemi \texttt{initGraph}, \texttt{loadGraph} a \texttt{freeGraph}. Zamykání uzlů a stromů umožňují funkce \texttt{lockNode}, \texttt{unlockNode}, \texttt{lockTree}, \texttt{unlockTree}, \texttt{lockNodes} a \texttt{lockTrees}, přičemž funkce \texttt{lockNodes} a \texttt{lockTrees} zamykají dvojice uzlů nebo stromů v pořadí určeném jejich \texttt{id}. Strom lze vytvořit a zrušit zavoláním funkce \texttt{createTree} a \texttt{freeTree}. Funkce \texttt{colourNodes} obarví všechny uzly stromu na požadovanou barvu, \texttt{processPath} projde stromem od listového uzlu ke kořeni a změní na hranách cesty párování.
+
+Funkce \texttt{addNodeToTree} se snaží k uzlu \texttt{nodeA} stromu \texttt{treeA} přidat uzel \texttt{nodeB} přes hranu \texttt{AB} s očekávanou příslušností k párování \texttt{M}. Funkce vrací hodnotu z výčtu: \texttt{OK}, \texttt{ABORT}, \texttt{IGNORE}, \texttt{CONFLICT} nebo \texttt{PATH}. 
+
+Funkce \texttt{applyAPS} se pomocí stromu \texttt{tree} snažít nalézt $M$-rozšiřující cestu. Pokud nalezne cestu, zavolá na ni \texttt{processPath}, funkcí \texttt{colourNodes} obarví uzly stromu na bílo a vrátí \texttt{OK}. Pokud nalezne APS strom, obarví uzly na zeleno a vrátí \texttt{OK}. Jinak obarví uzly na bílo a vrátí \texttt{ABORT}.
+
+Funkce \texttt{findMatching} zpracovává frontu kořenových uzlů. Pokud fronta není prázdná, vybere se uzel, který je bílý a žádná jeho hrana není v párování. Vytvoří se strom, kde vybraný uzel bude jeho kořenovým uzlem, a zavolá se funkce \texttt{applyAPS}. Pokud funkce vrátí \texttt{ABORT}, uzel se vrátí zpátky do fronty. Funkce \texttt{findMatchingParallel} vytváří a spouští vlákna nad funkcí \texttt{findMatching} s daty typu \texttt{TThreadData}. Funkce \texttt{main} kontroluje vstupní parametry, vytváří ze vstupního souboru graf a volá pro něj funkci \texttt{findMatchingParallel}.
+
 \subsection{Spuštění aplikace}
+
+Výsledný program \texttt{matching.c} je umístěný v adresáři \texttt{parallel}. Lze jej přeložit příkazem \texttt{make} a spustit příkazem \texttt{./matching file n}, kde \texttt{file} je název vstupního souboru a \texttt{n} je počet vláken. Očekáváný formát vstupního souboru popisujeme v kapitole \ref{secGenerating}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Experimenty}
 
-\subsection{Generování vstupních souborů}
+\subsection{Generování vstupních souborů} \label{secGenerating}
 
 Pro vygenerování vstupních souborů jsme v jazyce \texttt{python 2.7} s použitím knihovny \texttt{python-igraph 0.7} napsaly skript \texttt{generator.py}. 
 Skript generuje bipartitní neorientované grafy $G=(X,Y,E)$ a ukladá je do souborů \texttt{graph\_x\_y\_p\_m}, kde $x$ je počet uzlů v množině $X$, $y$ je počet uzlů v množině $Y$, $p$ je procentuální vyjádření počtu hran množiny $E$ a $m$ je počet hran v maximálním párování. Pak soubor obsahuje počet uzlů množiny $X \cup Y$, počet hran množiny $E$ a výčet všech dvojic uzlů, mezi kterými existuje v $E$ hrana, přičemž každá hrana je reprezentovaná právě jednou.
