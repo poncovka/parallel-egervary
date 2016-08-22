@@ -1,5 +1,8 @@
 #/!bin/sh
 
+# Measure the execution time for the sequence and the parallel versions
+# for the generated input and the given numbers of processors and threads.
+
 MAXPROC=12
 MAXTHREAD=15 
 
